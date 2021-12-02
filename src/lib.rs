@@ -6,3 +6,12 @@ Toy ECS based on sparse sets
 mod tests;
 
 pub mod res;
+pub mod sys;
+
+use crate::res::ResourceMap;
+
+/// In-memory central DB
+#[derive(Debug, Default)]
+pub struct World {
+    res: ResourceMap,
+}

@@ -1,4 +1,7 @@
-use crate::res::ResourceMap;
+use crate::{
+    res::{Res, ResMut, ResourceMap},
+    World,
+};
 
 #[test]
 fn resource_map() {
@@ -36,4 +39,22 @@ fn resource_safe() {
     res.insert(0usize);
     let _u1 = res.borrow::<usize>().unwrap();
     let _u2 = res.borrow::<usize>().unwrap();
+}
+
+#[test]
+fn resource_system() {
+    use crate::sys::System;
+
+    fn system(x: Res<usize>, mut y: ResMut<isize>) {
+        *y = *x as isize + *y;
+    }
+
+    let mut world = World::default();
+    world.res.insert(10usize);
+    world.res.insert(30isize);
+
+    unsafe {
+        system.run(&world);
+    }
+    assert_eq!(*world.res.borrow::<isize>().unwrap(), 10 + 30);
 }
