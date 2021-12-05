@@ -58,3 +58,42 @@ fn resource_system() {
     }
     assert_eq!(*world.res.borrow::<isize>().unwrap(), 10 + 30);
 }
+
+#[test]
+fn sparse_set() {
+    use crate::sparse::*;
+
+    let mut set = SparseSet::<usize>::default();
+
+    // Indices are allocatead manually:
+    let i0 = SparseIndex::initial(RawSparseIndex(0));
+    let i1 = SparseIndex::initial(RawSparseIndex(1));
+    let i2 = SparseIndex::initial(RawSparseIndex(2));
+
+    assert_eq!(set.insert(i0, 0), None);
+    assert_eq!(set.insert(i1, 1), None);
+    assert_eq!(set.insert(i2, 2), None);
+
+    assert_eq!(set.get(i0), Some(&0));
+    assert_eq!(set.get(i1), Some(&1));
+    assert_eq!(set.get(i2), Some(&2));
+
+    let i1_new = i1.increment_generation();
+    assert_eq!(set.insert(i1_new, 100), Some(1));
+
+    assert_eq!(set.get(i0), Some(&0));
+    // old index is invalidated
+    assert_eq!(set.get(i1), None);
+    assert_eq!(set.get(i1_new), Some(&100));
+    assert_eq!(set.get(i2), Some(&2));
+
+    assert_eq!(set.swap_remove(i0), Some(0));
+
+    for (i, x) in set.iter_with_index() {
+        match i {
+            _ if *i == i1_new => assert_eq!(x, &100),
+            _ if *i == i2 => assert_eq!(x, &2),
+            _ => unreachable!(),
+        }
+    }
+}

@@ -6,6 +6,7 @@ Toy ECS based on sparse sets
 mod tests;
 
 pub mod res;
+pub mod sparse;
 pub mod sys;
 
 use crate::res::ResourceMap;
