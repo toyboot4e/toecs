@@ -1,4 +1,5 @@
 use crate::{
+    comp::ComponentPoolMap,
     ent::EntityPool,
     res::{Res, ResMut, ResourceMap},
     World,
@@ -121,4 +122,50 @@ fn entity_pool() {
     assert!(pool.dealloc(e1));
     assert!(!pool.dealloc(e1));
     assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e2_new]);
+}
+
+#[test]
+fn component_pool_map() {
+    let mut world = World::default();
+
+    assert!(!world.comp.is_registered::<usize>());
+    assert!(!world.comp.register::<usize>());
+    assert!(world.comp.is_registered::<usize>());
+    assert!(!world.comp.register::<isize>());
+
+    let e0 = world.ents.alloc();
+    let e1 = world.ents.alloc();
+    let e2 = world.ents.alloc();
+
+    let mut us = world.comp.borrow_mut::<usize>().unwrap();
+    assert_eq!(us.insert(e0, 100), None);
+    assert_eq!(us.insert(e0, 0), Some(100));
+    assert_eq!(us.insert(e1, 1), None);
+    assert_eq!(us.insert(e2, 2), None);
+
+    let mut is = world.comp.borrow_mut::<isize>().unwrap();
+    assert_eq!(is.insert(e0, -0), None);
+    assert_eq!(is.insert(e1, -1), None);
+    assert_eq!(is.insert(e2, -2), None);
+
+    assert_eq!(is.swap_remove(e0), Some(-0));
+    assert_eq!(is.get(e1), Some(&-1));
+    assert_eq!(is.get(e2), Some(&-2));
+}
+
+#[test]
+fn component_safe() {
+    let mut comp = ComponentPoolMap::default();
+    comp.register::<usize>();
+    let _u1 = comp.borrow::<usize>().unwrap();
+    let _u2 = comp.borrow::<usize>().unwrap();
+}
+
+#[test]
+#[should_panic]
+fn component_panic() {
+    let mut comp = ComponentPoolMap::default();
+    comp.register::<usize>();
+    let _u1 = comp.borrow_mut::<usize>().unwrap();
+    let _u2 = comp.borrow::<usize>().unwrap();
 }
