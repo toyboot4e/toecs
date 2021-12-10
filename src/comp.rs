@@ -5,11 +5,12 @@ Each type of components are stored in a pool backed by a [`SparseSet`].
 */
 
 use std::{
-    any::{Any, TypeId},
-    ops, slice,
+    any::{self, TypeId},
+    fmt, ops, slice,
 };
 
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
+use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -20,13 +21,31 @@ use crate::{
 /// SoA storage of components backed by sparse sets
 #[derive(Debug, Default)]
 pub struct ComponentPoolMap {
-    cells: FxHashMap<TypeId, AtomicRefCell<AnyPool>>,
+    cells: FxHashMap<TypeId, AtomicRefCell<ErasedPool>>,
 }
 
-#[derive(Debug)]
-struct AnyPool {
-    any: Box<dyn Any>,
+struct ErasedPool {
+    /// Type name string for debug print
+    #[allow(unused)]
+    of_type: &'static str,
+    erased: Box<dyn ErasedComponentPool>,
 }
+
+impl fmt::Debug for ErasedPool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ErasedPool")
+            .field("of_type", &self.of_type)
+            .field("erased", &"..")
+            .finish()
+    }
+}
+
+/// Upcast of `ComponentPool<T>`s
+pub(crate) trait ErasedComponentPool: Downcast {
+    fn erased_remove(&mut self, entity: Entity);
+}
+
+impl_downcast!(ErasedComponentPool);
 
 impl ComponentPoolMap {
     pub fn is_registered<T: 'static>(&self) -> bool {
@@ -41,8 +60,9 @@ impl ComponentPoolMap {
             return true;
         }
 
-        let pool = AnyPool {
-            any: Box::new(ComponentPool::<T>::default()),
+        let pool = ErasedPool {
+            erased: Box::new(ComponentPool::<T>::default()),
+            of_type: any::type_name::<T>(),
         };
 
         self.cells.insert(ty, AtomicRefCell::new(pool));
@@ -54,7 +74,7 @@ impl ComponentPoolMap {
     pub fn borrow<T: 'static>(&self) -> Option<Comp<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
         let borrow = AtomicRef::map(cell.borrow(), |pool| {
-            pool.any.downcast_ref::<ComponentPool<T>>().unwrap()
+            pool.erased.downcast_ref::<ComponentPool<T>>().unwrap()
         });
         Some(Comp { borrow })
     }
@@ -65,7 +85,7 @@ impl ComponentPoolMap {
     pub fn borrow_mut<T: 'static>(&self) -> Option<CompMut<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
         let borrow = AtomicRefMut::map(cell.borrow_mut(), |pool| {
-            pool.any
+            pool.erased
                 .downcast_mut::<ComponentPool<T>>()
                 .unwrap_or_else(|| unreachable!())
         });
@@ -74,7 +94,7 @@ impl ComponentPoolMap {
 
     pub fn get_mut<T: 'static>(&mut self) -> Option<&mut ComponentPool<T>> {
         let cell = self.cells.get_mut(&TypeId::of::<T>())?;
-        Some(cell.get_mut().any.downcast_mut().unwrap())
+        Some(cell.get_mut().erased.downcast_mut().unwrap())
     }
 }
 
@@ -82,6 +102,12 @@ impl ComponentPoolMap {
 #[derive(Debug)]
 pub struct ComponentPool<T> {
     set: SparseSet<T>,
+}
+
+impl<T: 'static> ErasedComponentPool for ComponentPool<T> {
+    fn erased_remove(&mut self, entity: Entity) {
+        self.swap_remove(entity);
+    }
 }
 
 impl<T> Default for ComponentPool<T> {

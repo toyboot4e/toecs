@@ -36,4 +36,7 @@ fn world_api() {
     // assert_eq!(world.entities().collect::<Vec<_>>(), [&e1, &e3, &e2]);
 
     // TODO: iterate through components
+
+    // $ cargo test -- --nocapture
+    println!("{:#?}", world);
 }

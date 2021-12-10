@@ -3,7 +3,7 @@ Resources: virtually `World` fields backed by an anymap
 */
 
 use std::{
-    any::{Any, TypeId},
+    any::{self, Any, TypeId},
     ops,
 };
 
@@ -19,11 +19,17 @@ pub struct ResourceMap {
 #[derive(Debug)]
 struct AnyResource {
     any: Box<dyn Any>,
+    /// Type name string for debug print
+    #[allow(unused)]
+    of_type: &'static str,
 }
 
 impl ResourceMap {
     pub fn insert<T: 'static>(&mut self, x: T) -> Option<T> {
-        let new_cell = AtomicRefCell::new(AnyResource { any: Box::new(x) });
+        let new_cell = AtomicRefCell::new(AnyResource {
+            any: Box::new(x),
+            of_type: any::type_name::<T>(),
+        });
         let old_cell = self.cells.insert(TypeId::of::<T>(), new_cell)?;
         Some(Self::unwrap_res(old_cell.into_inner()))
     }
