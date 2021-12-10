@@ -1,0 +1,133 @@
+/*!
+Entity: ID associated with a set of components
+*/
+
+use std::slice;
+
+use crate::sparse::*;
+
+/// Identifier that represents an object made of components
+///
+/// Components of entities are stored in a sparse set-based Struct of Arrays.
+///
+/// # Non-zero type use
+///
+/// ```
+/// # use std::mem::size_of;
+/// # use toecs::ent::Entity;
+/// assert_eq!(size_of::<Entity>(), size_of::<Option<Entity>>());
+///
+/// struct Test { a: u32, e: Entity, x: u32 }
+/// assert_eq!(size_of::<Test>(), size_of::<Option<Test>>());
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct Entity(pub(crate) SparseIndex);
+
+impl Entity {
+    fn initial(slot: RawSparseIndex) -> Self {
+        Self(SparseIndex::initial(slot))
+    }
+
+    pub fn generation(&self) -> Generation {
+        self.0.generation()
+    }
+}
+
+/// Pool of entities
+///
+/// # Implementation
+///
+/// It is different from ordinary sparse set in two points:
+///
+/// 1. It takes sparse index and returns sparse index, so it doesn't need to handle a dense to
+/// sparse map.
+/// 2. It needs to recycle sparse index so that the generation is incremented.
+#[derive(Debug, Default)]
+pub struct EntityPool {
+    entries: Vec<Entry>,
+    data: Vec<Entity>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Entry {
+    ToDense(DenseIndex),
+    Empty { gen: Generation },
+}
+
+impl EntityPool {
+    pub fn slice(&self) -> &[Entity] {
+        &self.data
+    }
+
+    pub fn iter(&self) -> slice::Iter<Entity> {
+        self.data.iter()
+    }
+
+    pub fn alloc(&mut self) -> Entity {
+        if self.data.len() >= self.entries.len() {
+            // full
+            debug_assert_eq!(self.data.len(), self.entries.len());
+
+            let slot = self.data.len();
+            let entity = Entity::initial(RawSparseIndex::from_usize(slot));
+
+            self.data.push(entity.clone());
+            self.entries.push(Entry::ToDense(DenseIndex::initial(
+                RawDenseIndex::from_usize(slot),
+            )));
+
+            entity
+        } else {
+            // FIXME: Linear search is too slow! Make a linked list of free slots instead.
+            let (i_entry, gen) = self.find_empty_entry();
+            let gen = gen.increment();
+
+            // recycle the empty slot
+            let dense_slot = self.data.len();
+            let entity = Entity(SparseIndex::new(
+                RawSparseIndex::from_usize(dense_slot),
+                gen,
+            ));
+
+            self.data.push(entity.clone());
+            self.entries[i_entry] =
+                Entry::ToDense(DenseIndex::new(RawDenseIndex::from_usize(dense_slot), gen));
+
+            entity
+        }
+    }
+
+    // find empty entry and recycle the slot
+    fn find_empty_entry(&self) -> (usize, &Generation) {
+        for (i, entry) in self.entries.iter().enumerate() {
+            if let Entry::Empty { gen: g } = entry {
+                return (i, g);
+            }
+        }
+
+        unreachable!()
+    }
+
+    pub fn dealloc(&mut self, ent: Entity) -> bool {
+        let slot = ent.0.to_usize();
+        if slot > self.entries.len() - 1 {
+            return false;
+        }
+
+        let dense = match self.entries[slot] {
+            Entry::ToDense(e) => e,
+            Entry::Empty { .. } => return false,
+        };
+
+        if dense.generation() == ent.generation() {
+            self.entries[slot] = Entry::Empty {
+                gen: ent.generation(),
+            };
+            self.data.remove(dense.to_usize());
+            true
+        } else {
+            false
+        }
+    }
+}

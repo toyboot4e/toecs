@@ -1,4 +1,5 @@
 use crate::{
+    ent::EntityPool,
     res::{Res, ResMut, ResourceMap},
     World,
 };
@@ -96,4 +97,28 @@ fn sparse_set() {
             _ => unreachable!(),
         }
     }
+}
+
+#[test]
+fn entity_pool() {
+    let mut pool = EntityPool::default();
+    let e0 = pool.alloc();
+    let e1 = pool.alloc();
+    let e2 = pool.alloc();
+
+    assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e1, &e2]);
+
+    // deallocation at the boundary
+    assert!(pool.dealloc(e2));
+    assert!(!pool.dealloc(e2));
+    assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e1]);
+
+    // make sure the slot is recycled:
+    let e2_new = pool.alloc();
+    assert_eq!(e2_new.generation().to_usize(), 2);
+
+    // deallocation at non-boundary
+    assert!(pool.dealloc(e1));
+    assert!(!pool.dealloc(e1));
+    assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e2_new]);
 }
