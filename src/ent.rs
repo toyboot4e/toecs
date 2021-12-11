@@ -2,7 +2,7 @@
 Entity: ID associated with a set of components
 */
 
-use std::slice;
+use std::{fmt, slice};
 
 use crate::sparse::*;
 
@@ -20,9 +20,20 @@ use crate::sparse::*;
 /// struct Test { a: u32, e: Entity, x: u32 }
 /// assert_eq!(size_of::<Test>(), size_of::<Option<Test>>());
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Entity(pub(crate) SparseIndex);
+
+impl fmt::Debug for Entity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Entity({}, {})",
+            self.0.raw().to_usize(),
+            self.0.generation().to_usize()
+        )
+    }
+}
 
 impl Entity {
     fn initial(slot: RawSparseIndex) -> Self {
@@ -49,10 +60,24 @@ pub struct EntityPool {
     data: Vec<Entity>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Entry {
     ToDense(DenseIndex),
     Empty { gen: Generation },
+}
+
+impl fmt::Debug for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ToDense(dense) => write!(
+                f,
+                "ToDense({}, {})",
+                dense.raw().to_usize(),
+                dense.generation().to_usize()
+            ),
+            Self::Empty { gen } => write!(f, "Empty({})", gen.to_usize()),
+        }
+    }
 }
 
 impl EntityPool {
