@@ -39,4 +39,5 @@ fn world_api() {
 
     // $ cargo test -- --nocapture
     println!("{:#?}", world);
+    println!("{:#?}", world.display());
 }

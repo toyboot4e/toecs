@@ -169,3 +169,27 @@ fn component_panic() {
     let _u1 = comp.borrow_mut::<usize>().unwrap();
     let _u2 = comp.borrow::<usize>().unwrap();
 }
+
+#[test]
+fn pointer_stability_after_display() {
+    let mut world = World::default();
+
+    world.comp.register::<usize>();
+    world.comp.register::<isize>();
+    let _e0 = world.ents.alloc();
+    let _e1 = world.ents.alloc();
+
+    let res = &world.comp as *const _;
+    let ents = &world.ents as *const _;
+    let comp = &world.comp as *const _;
+
+    format!("{:?}", world.display());
+
+    let res2 = &world.comp as *const _;
+    let ents2 = &world.ents as *const _;
+    let comp2 = &world.comp as *const _;
+
+    assert_eq!(res, res2);
+    assert_eq!(ents, ents2);
+    assert_eq!(comp, comp2);
+}

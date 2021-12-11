@@ -21,7 +21,7 @@ pub mod prelude {
     };
 }
 
-use std::any;
+use std::{any, cell::RefCell, fmt, mem};
 
 use crate::{
     comp::{Comp, CompMut, Component, ComponentPoolMap},
@@ -148,5 +148,37 @@ impl World {
     /// Removes a component to from entity.
     pub fn remove<T: Component>(&mut self, ent: Entity) -> Option<T> {
         self.comp_mut::<T>().swap_remove(ent)
+    }
+
+    /// Returns a debug display. This is safe because it has exclusive access.
+    pub fn display(&mut self) -> WorldDisplay {
+        let mut world = World::default();
+        mem::swap(self, &mut world);
+        WorldDisplay {
+            world: RefCell::new(world),
+            original_world: self,
+        }
+    }
+}
+
+/// See [`World::display`]
+pub struct WorldDisplay<'w> {
+    world: RefCell<World>,
+    original_world: &'w mut World,
+}
+
+impl<'w> Drop for WorldDisplay<'w> {
+    fn drop(&mut self) {
+        mem::swap(self.original_world, self.world.get_mut());
+    }
+}
+
+impl<'w> fmt::Debug for WorldDisplay<'w> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("WorldDisplay");
+        s.field("res", &self.world.borrow_mut().res.display());
+        s.field("ents", &self.world.borrow_mut().ents);
+        s.field("comp", &self.world.borrow_mut().comp.display());
+        s.finish()
     }
 }

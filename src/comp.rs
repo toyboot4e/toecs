@@ -6,7 +6,8 @@ Each type of components are stored in a pool backed by a [`SparseSet`].
 
 use std::{
     any::{self, TypeId},
-    fmt, ops, slice,
+    cell::RefCell,
+    fmt, mem, ops, slice,
 };
 
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
@@ -102,10 +103,48 @@ impl ComponentPoolMap {
             .values_mut()
             .map(|cell| &mut *cell.get_mut().erased)
     }
+
+    /// Returns a debug display. This is safe because it has exclusive access.
+    pub fn display(&mut self) -> ComponentPoolMapDisplay {
+        let mut map = ComponentPoolMap::default();
+        mem::swap(self, &mut map);
+        ComponentPoolMapDisplay {
+            map: RefCell::new(map),
+            original_map: self,
+        }
+    }
+}
+
+/// See [`ComponentPoolMap::display`]
+pub struct ComponentPoolMapDisplay<'r> {
+    map: RefCell<ComponentPoolMap>,
+    original_map: &'r mut ComponentPoolMap,
+}
+
+impl<'w> Drop for ComponentPoolMapDisplay<'w> {
+    fn drop(&mut self) {
+        mem::swap(self.original_map, self.map.get_mut());
+    }
+}
+
+impl<'r> fmt::Debug for ComponentPoolMapDisplay<'r> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut map = f.debug_map();
+
+        self.map
+            .borrow_mut()
+            .cells
+            .values_mut()
+            .map(|cell| cell.get_mut())
+            .for_each(|pool| {
+                map.entry(&pool.of_type, &pool.erased);
+            });
+
+        map.finish()
+    }
 }
 
 /// Sparse set of components of type T
-#[derive(Debug)]
 pub struct ComponentPool<T> {
     set: SparseSet<T>,
 }
@@ -113,6 +152,12 @@ pub struct ComponentPool<T> {
 impl<T: Component> ErasedComponentPool for ComponentPool<T> {
     fn erased_remove(&mut self, entity: Entity) {
         self.swap_remove(entity);
+    }
+}
+
+impl<T: Component> fmt::Debug for ComponentPool<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(self.set.as_slice()).finish()
     }
 }
 
@@ -187,7 +232,7 @@ impl<T> AsMut<[T]> for ComponentPool<T> {
 
 /// Immutable access to a component pool of type `T`
 #[derive(Debug)]
-pub struct Comp<'r, T> {
+pub struct Comp<'r, T: 'static> {
     borrow: AtomicRef<'r, ComponentPool<T>>,
 }
 
@@ -200,7 +245,7 @@ impl<'r, T> ops::Deref for Comp<'r, T> {
 
 /// Mutable access to a component pool of type `T`
 #[derive(Debug)]
-pub struct CompMut<'r, T> {
+pub struct CompMut<'r, T: 'static> {
     borrow: AtomicRefMut<'r, ComponentPool<T>>,
 }
 

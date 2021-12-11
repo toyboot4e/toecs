@@ -4,7 +4,8 @@ Resources: virtually `World` fields backed by an anymap
 
 use std::{
     any::{self, TypeId},
-    fmt, ops,
+    cell::RefCell,
+    fmt, mem, ops,
 };
 
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
@@ -76,6 +77,42 @@ impl ResourceMap {
                 .unwrap_or_else(|| unreachable!())
         });
         Some(ResMut { borrow })
+    }
+
+    /// Returns a debug display. This is safe because it has exclusive access.
+    pub fn display(&mut self) -> ResourceMapDisplay {
+        let mut res = Self::default();
+        mem::swap(&mut res, self);
+        ResourceMapDisplay {
+            res: RefCell::new(res),
+            original_res: self,
+        }
+    }
+}
+
+/// See [`ResourceMap::display`]
+pub struct ResourceMapDisplay<'r> {
+    res: RefCell<ResourceMap>,
+    original_res: &'r mut ResourceMap,
+}
+
+impl<'w> Drop for ResourceMapDisplay<'w> {
+    fn drop(&mut self) {
+        mem::swap(self.original_res, self.res.get_mut());
+    }
+}
+
+impl<'r> fmt::Debug for ResourceMapDisplay<'r> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries(
+                self.res
+                    .borrow_mut()
+                    .cells
+                    .values_mut()
+                    .map(|cell| cell.get_mut()),
+            )
+            .finish()
     }
 }
 
