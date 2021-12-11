@@ -3,12 +3,20 @@ Resources: virtually `World` fields backed by an anymap
 */
 
 use std::{
-    any::{self, Any, TypeId},
-    ops,
+    any::{self, TypeId},
+    fmt, ops,
 };
 
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
+use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
+
+/// Type boundary for resource types
+pub trait Resource: 'static + fmt::Debug + Downcast {}
+
+impl_downcast!(Resource);
+
+impl<T: 'static + fmt::Debug + Downcast> Resource for T {}
 
 /// Dynamic fields of a `World` backed by an anymap
 #[derive(Debug, Default)]
@@ -18,14 +26,14 @@ pub struct ResourceMap {
 
 #[derive(Debug)]
 struct AnyResource {
-    any: Box<dyn Any>,
     /// Type name string for debug print
     #[allow(unused)]
     of_type: &'static str,
+    any: Box<dyn Resource>,
 }
 
 impl ResourceMap {
-    pub fn insert<T: 'static>(&mut self, x: T) -> Option<T> {
+    pub fn insert<T: Resource>(&mut self, x: T) -> Option<T> {
         let new_cell = AtomicRefCell::new(AnyResource {
             any: Box::new(x),
             of_type: any::type_name::<T>(),
@@ -34,24 +42,24 @@ impl ResourceMap {
         Some(Self::unwrap_res(old_cell.into_inner()))
     }
 
-    pub fn remove<T: 'static>(&mut self) -> Option<T> {
+    pub fn remove<T: Resource>(&mut self) -> Option<T> {
         let old_cell = self.cells.remove(&TypeId::of::<T>())?;
         Some(Self::unwrap_res(old_cell.into_inner()))
     }
 
-    fn unwrap_res<T: 'static>(res: AnyResource) -> T {
+    fn unwrap_res<T: Resource>(res: AnyResource) -> T {
         let box_t = res.any.downcast::<T>().unwrap_or_else(|_| unreachable!());
         *box_t
     }
 
-    pub fn contains<T: 'static>(&self) -> bool {
+    pub fn contains<T: Resource>(&self) -> bool {
         self.cells.contains_key(&TypeId::of::<T>())
     }
 
     /// Tries to get an immutable access to a resource
     /// # Panics
     /// Panics when breaking the aliasing rules.
-    pub fn borrow<T: 'static>(&self) -> Option<Res<T>> {
+    pub fn borrow<T: Resource>(&self) -> Option<Res<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
         let borrow = AtomicRef::map(cell.borrow(), |res| res.any.downcast_ref::<T>().unwrap());
         Some(Res { borrow })
@@ -60,7 +68,7 @@ impl ResourceMap {
     /// Tries to get a mutable access to a resource
     /// # Panics
     /// Panics when breaking the aliasing rules.
-    pub fn borrow_mut<T: 'static>(&self) -> Option<ResMut<T>> {
+    pub fn borrow_mut<T: Resource>(&self) -> Option<ResMut<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
         let borrow = AtomicRefMut::map(cell.borrow_mut(), |res| {
             res.any

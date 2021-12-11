@@ -24,9 +24,9 @@ pub mod prelude {
 use std::any;
 
 use crate::{
-    comp::{Comp, CompMut, ComponentPoolMap},
+    comp::{Comp, CompMut, Component, ComponentPoolMap},
     ent::{Entity, EntityPool},
-    res::{Res, ResMut, ResourceMap},
+    res::{Res, ResMut, Resource, ResourceMap},
 };
 
 /// In-memory central DB
@@ -39,25 +39,25 @@ pub struct World {
 
 impl World {
     /// Sets a resource, a unique instance of type `T`. Returns some old value if it's present.
-    pub fn set_res<T: 'static>(&mut self, res: T) -> Option<T> {
+    pub fn set_res<T: Resource>(&mut self, res: T) -> Option<T> {
         self.res.insert(res)
     }
 
     /// Tries to get an immutable access to a resource of type `T`
     /// # Panics
     /// Panics when breaking the aliaslng rules.
-    pub fn maybe_res<T: 'static>(&self) -> Option<Res<T>> {
+    pub fn maybe_res<T: Resource>(&self) -> Option<Res<T>> {
         self.res.borrow::<T>()
     }
 
     /// Tries to get a mutable access to a resource of type `T`
     /// # Panics
     /// Panics when breaking the aliaslng rules.
-    pub fn maybe_res_mut<T: 'static>(&self) -> Option<ResMut<T>> {
+    pub fn maybe_res_mut<T: Resource>(&self) -> Option<ResMut<T>> {
         self.res.borrow_mut::<T>()
     }
 
-    fn resource_panic<T: 'static>() -> ! {
+    fn resource_panic<T: Resource>() -> ! {
         panic!(
             "Tried to get resource of type {}, but it was not present",
             any::type_name::<T>()
@@ -67,26 +67,26 @@ impl World {
     /// Tries to get an immutable access to a resource of type `T`
     /// # Panics
     /// Panics when breaking the aliaslng rules. Panics when the resource is not set.
-    pub fn res<T: 'static>(&self) -> Res<T> {
+    pub fn res<T: Resource>(&self) -> Res<T> {
         self.maybe_res::<T>()
             .unwrap_or_else(|| Self::resource_panic::<T>())
     }
 
     /// Tries to get a mutable access to a resource of type `T`
-    /// # Panics
+    /// # Safety
     /// Panics when breaking the aliaslng rules. Panics when the resource is not set.
-    pub fn res_mut<T: 'static>(&self) -> ResMut<T> {
+    pub fn res_mut<T: Resource>(&self) -> ResMut<T> {
         self.maybe_res_mut::<T>()
             .unwrap_or_else(|| Self::resource_panic::<T>())
     }
 
     /// Checks if we have a component pool for type `T`
-    pub fn is_registered<T: 'static>(&self) -> bool {
+    pub fn is_registered<T: Component>(&self) -> bool {
         self.comp.is_registered::<T>()
     }
 
     /// Registers a component pool for type `T`. Returns true if it was already registered.
-    pub fn register<T: 'static>(&mut self) -> bool {
+    pub fn register<T: Component>(&mut self) -> bool {
         self.comp.register::<T>()
     }
 
@@ -118,7 +118,7 @@ impl World {
     /// Tries to get an immutable access to a component pool of type `T`
     /// # Panics
     /// Panics if the component pool is not registered. Panics when breaking the aliaslng rules.
-    pub fn comp<T: 'static>(&self) -> Comp<T> {
+    pub fn comp<T: Component>(&self) -> Comp<T> {
         self.comp
             .borrow::<T>()
             .unwrap_or_else(|| Self::comp_panic::<T>())
@@ -127,13 +127,13 @@ impl World {
     /// Tries to get a mutable access to a coponent pool of type `Tn`
     /// # Safety
     /// Panics if the component pool is not registered. Panics when breaking the aliaslng rules.
-    pub fn comp_mut<T: 'static>(&self) -> CompMut<T> {
+    pub fn comp_mut<T: Component>(&self) -> CompMut<T> {
         self.comp
             .borrow_mut::<T>()
             .unwrap_or_else(|| Self::comp_panic::<T>())
     }
 
-    fn comp_panic<T: 'static>() -> ! {
+    fn comp_panic<T: Component>() -> ! {
         panic!(
             "Tried to get component pool of type {}, but it was not registered",
             any::type_name::<T>()
@@ -141,12 +141,12 @@ impl World {
     }
 
     /// Inserts a component to an entity. Returns some old component if it is present.
-    pub fn insert<T: 'static>(&mut self, ent: Entity, comp: T) -> Option<T> {
+    pub fn insert<T: Component>(&mut self, ent: Entity, comp: T) -> Option<T> {
         self.comp_mut::<T>().insert(ent, comp)
     }
 
     /// Removes a component to from entity.
-    pub fn remove<T: 'static>(&mut self, ent: Entity) -> Option<T> {
+    pub fn remove<T: Component>(&mut self, ent: Entity) -> Option<T> {
         self.comp_mut::<T>().swap_remove(ent)
     }
 }

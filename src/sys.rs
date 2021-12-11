@@ -5,8 +5,8 @@ Systems: procedures that operate on the [`World`]
 use std::any;
 
 use crate::{
-    comp::{Comp, CompMut},
-    res::{Res, ResMut},
+    comp::{Comp, CompMut, Component},
+    res::{Res, ResMut, Resource},
     World,
 };
 
@@ -18,7 +18,7 @@ pub trait BorrowWorld<'w> {
     unsafe fn borrow(w: &'w World) -> Self;
 }
 
-impl<'w, T: 'static> BorrowWorld<'w> for Res<'w, T> {
+impl<'w, T: Resource> BorrowWorld<'w> for Res<'w, T> {
     unsafe fn borrow(w: &'w World) -> Self {
         w.res.borrow().unwrap_or_else(|| {
             panic!(
@@ -29,7 +29,7 @@ impl<'w, T: 'static> BorrowWorld<'w> for Res<'w, T> {
     }
 }
 
-impl<'w, T: 'static> BorrowWorld<'w> for ResMut<'w, T> {
+impl<'w, T: Resource> BorrowWorld<'w> for ResMut<'w, T> {
     unsafe fn borrow(w: &'w World) -> Self {
         w.res.borrow_mut().unwrap_or_else(|| {
             panic!(
@@ -40,7 +40,7 @@ impl<'w, T: 'static> BorrowWorld<'w> for ResMut<'w, T> {
     }
 }
 
-impl<'w, T: 'static> BorrowWorld<'w> for Comp<'w, T> {
+impl<'w, T: Component> BorrowWorld<'w> for Comp<'w, T> {
     unsafe fn borrow(w: &'w World) -> Self {
         w.comp.borrow().unwrap_or_else(|| {
             panic!(
@@ -51,7 +51,7 @@ impl<'w, T: 'static> BorrowWorld<'w> for Comp<'w, T> {
     }
 }
 
-impl<'w, T: 'static> BorrowWorld<'w> for CompMut<'w, T> {
+impl<'w, T: Component> BorrowWorld<'w> for CompMut<'w, T> {
     unsafe fn borrow(w: &'w World) -> Self {
         w.comp.borrow_mut().unwrap_or_else(|| {
             panic!(

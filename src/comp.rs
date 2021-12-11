@@ -18,12 +18,20 @@ use crate::{
     sparse::{SparseIndex, SparseSet},
 };
 
+/// Type boundary for component types
+pub trait Component: 'static + fmt::Debug + Downcast {}
+
+impl_downcast!(Component);
+
+impl<T: 'static + fmt::Debug + Downcast> Component for T {}
+
 /// SoA storage of components backed by sparse sets
 #[derive(Debug, Default)]
 pub struct ComponentPoolMap {
     cells: FxHashMap<TypeId, AtomicRefCell<ErasedPool>>,
 }
 
+#[derive(Debug)]
 struct ErasedPool {
     /// Type name string for debug print
     #[allow(unused)]
@@ -31,30 +39,21 @@ struct ErasedPool {
     erased: Box<dyn ErasedComponentPool>,
 }
 
-impl fmt::Debug for ErasedPool {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ErasedPool")
-            .field("of_type", &self.of_type)
-            .field("erased", &"..")
-            .finish()
-    }
-}
-
 /// Upcast of `ComponentPool<T>`s
-pub(crate) trait ErasedComponentPool: Downcast {
+pub(crate) trait ErasedComponentPool: Downcast + fmt::Debug {
     fn erased_remove(&mut self, entity: Entity);
 }
 
 impl_downcast!(ErasedComponentPool);
 
 impl ComponentPoolMap {
-    pub fn is_registered<T: 'static>(&self) -> bool {
+    pub fn is_registered<T: Component>(&self) -> bool {
         let ty = TypeId::of::<T>();
         self.cells.contains_key(&ty)
     }
 
     /// Registers a component pool for type `T`. Returns true if it was already registered.
-    pub fn register<T: 'static>(&mut self) -> bool {
+    pub fn register<T: Component>(&mut self) -> bool {
         let ty = TypeId::of::<T>();
         if self.cells.contains_key(&ty) {
             return true;
@@ -69,9 +68,10 @@ impl ComponentPoolMap {
         false
     }
 
-    /// # Panics
+    /// Tries to get an immutable access to a component pool
+    /// # Safety
     /// Panics when breaking the aliasing rules.
-    pub fn borrow<T: 'static>(&self) -> Option<Comp<T>> {
+    pub fn borrow<T: Component>(&self) -> Option<Comp<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
         let borrow = AtomicRef::map(cell.borrow(), |pool| {
             pool.erased.downcast_ref::<ComponentPool<T>>().unwrap()
@@ -82,7 +82,7 @@ impl ComponentPoolMap {
     /// Tries to get a mutable access to a component pool
     /// # Panics
     /// - Panics breaking the aliasing rules.
-    pub fn borrow_mut<T: 'static>(&self) -> Option<CompMut<T>> {
+    pub fn borrow_mut<T: Component>(&self) -> Option<CompMut<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
         let borrow = AtomicRefMut::map(cell.borrow_mut(), |pool| {
             pool.erased
@@ -92,7 +92,7 @@ impl ComponentPoolMap {
         Some(CompMut { borrow })
     }
 
-    pub fn get_mut<T: 'static>(&mut self) -> Option<&mut ComponentPool<T>> {
+    pub fn get_mut<T: Component>(&mut self) -> Option<&mut ComponentPool<T>> {
         let cell = self.cells.get_mut(&TypeId::of::<T>())?;
         Some(cell.get_mut().erased.downcast_mut().unwrap())
     }
@@ -110,7 +110,7 @@ pub struct ComponentPool<T> {
     set: SparseSet<T>,
 }
 
-impl<T: 'static> ErasedComponentPool for ComponentPool<T> {
+impl<T: Component> ErasedComponentPool for ComponentPool<T> {
     fn erased_remove(&mut self, entity: Entity) {
         self.swap_remove(entity);
     }
