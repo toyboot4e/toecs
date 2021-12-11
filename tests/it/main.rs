@@ -13,26 +13,16 @@ fn world_api() {
     world.register::<usize>();
     world.register::<isize>();
 
-    let e1 = world.spawn();
-    let e2 = world.spawn();
-    let e3 = world.spawn();
-
-    // TODO: insert components with component set on spawn
-    world.insert(e1, 10usize);
-    world.insert(e1, -10isize);
-
-    world.insert(e2, 20usize);
-    world.insert(e2, -20isize);
-
-    world.insert(e3, 30usize);
-    world.insert(e3, -30isize);
+    let e1 = world.spawn((10usize, -10isize));
+    let e2 = world.spawn((20usize, -20isize));
+    let e3 = world.spawn((30usize, -30isize));
 
     assert_eq!(world.remove::<isize>(e1), Some(-10));
 
     assert!(world.despawn(e2));
     assert!(!world.despawn(e2));
 
-    let e2 = world.spawn();
+    let e2 = world.spawn_empty();
     assert_eq!(world.entities().iter().collect::<Vec<_>>(), [&e1, &e3, &e2]);
 
     // TODO: iterate through components

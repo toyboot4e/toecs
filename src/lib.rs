@@ -91,7 +91,14 @@ impl World {
     }
 
     /// Spawns an [`Entity`]
-    pub fn spawn(&mut self) -> Entity {
+    pub fn spawn<C: ComponentSet>(&mut self, comps: C) -> Entity {
+        let ent = self.ents.alloc();
+        comps.insert(ent, self);
+        ent
+    }
+
+    /// Spawns an [`Entity`] with no component
+    pub fn spawn_empty(&mut self) -> Entity {
         self.ents.alloc()
     }
 

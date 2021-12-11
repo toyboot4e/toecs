@@ -203,7 +203,7 @@ fn component_set() {
     type A = (usize, isize);
     A::register(&mut world);
 
-    let e0 = world.spawn();
+    let e0 = world.spawn_empty();
     (10usize, -10isize).insert(e0, &mut world);
 
     assert_eq!(world.comp::<usize>().get(e0), Some(&10));
