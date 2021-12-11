@@ -182,3 +182,86 @@ impl<'w> fmt::Debug for WorldDisplay<'w> {
         s.finish()
     }
 }
+
+/// One ore more components
+pub trait ComponentSet {
+    /// Registers the set of component storages to the world
+    fn register(world: &mut World);
+    /// Inserts the set of components to an entity
+    fn insert(self, ent: Entity, world: &mut World);
+    /// Removes the set of components from an entity
+    fn remove(ent: Entity, world: &mut World);
+}
+
+// NOTE: `(T)` is `T` while `(T,)` is a tuple
+macro_rules! impl_component_set {
+    ($($i:tt, $xs:ident),+ $(,)?) => {
+        impl<$($xs),+> ComponentSet for ($($xs,)+)
+        where
+            $($xs: Component,)+
+        {
+            fn register(world: &mut World) {
+                $(
+                    world.register::<$xs>();
+                )+
+            }
+
+            fn insert(self, ent: Entity, world: &mut World) {
+                $(
+                    world.insert(ent, self.$i);
+                )+
+            }
+
+            fn remove(ent: Entity, world: &mut World) {
+                $(
+                    world.remove::<$xs>(ent);
+                )+
+            }
+        }
+    };
+}
+
+/// `macro!(1, C1, 0, C0)` → `macro!(0, C0, 1, C1)`
+macro_rules! reversed2 {
+	($macro:tt, [] $($reversed:tt,)+) => {
+        $macro!($($reversed),+);
+    };
+	($macro:tt, [$first_0:tt, $first_1:tt, $($rest_0:tt, $rest_1:tt,)*] $($reversed:tt,)*) => {
+		reversed2!($macro, [$($rest_0, $rest_1,)*] $first_0, $first_1, $($reversed,)*);
+	};
+}
+
+macro_rules! recursive_indexed {
+    ($macro:path, $i_first:tt, $first:ident) => {
+        $macro!($i_first, $first);
+    };
+    ($macro:path, $i_first:tt, $first:ident, $($i_rest:tt, $rest:ident),*) => {
+        reversed2!($macro, [$i_first, $first, $($i_rest, $rest,)*]);
+        recursive_indexed!($macro, $($i_rest, $rest),*);
+    };
+    ($macro:path, [$(($i_many:tt, $many:ident)),+ $(,)?]) => {
+        recursive_indexed!($macro, $($i_many, $many),*);
+    };
+}
+
+recursive_indexed!(
+    impl_component_set,
+    [
+        (15, C15),
+        (14, C14),
+        (13, C13),
+        (12, C12),
+        (11, C11),
+        (10, C10),
+        (9, C9),
+        (8, C8),
+        (7, C7),
+        (6, C6),
+        (5, C5),
+        (4, C4),
+        (3, C3),
+        (2, C2),
+        (1, C1),
+        (0, C0),
+    ]
+);

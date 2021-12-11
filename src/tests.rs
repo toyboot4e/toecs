@@ -193,3 +193,24 @@ fn pointer_stability_after_display() {
     assert_eq!(ents, ents2);
     assert_eq!(comp, comp2);
 }
+
+#[test]
+fn component_set() {
+    let mut world = World::default();
+
+    use crate::ComponentSet;
+
+    type A = (usize, isize);
+    A::register(&mut world);
+
+    let e0 = world.spawn();
+    (10usize, -10isize).insert(e0, &mut world);
+
+    assert_eq!(world.comp::<usize>().get(e0), Some(&10));
+    assert_eq!(world.comp::<isize>().get(e0), Some(&-10));
+
+    A::remove(e0, &mut world);
+
+    assert_eq!(world.comp::<usize>().get(e0), None);
+    assert_eq!(world.comp::<isize>().get(e0), None);
+}
