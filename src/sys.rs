@@ -5,6 +5,7 @@ Systems: procedures that operate on the [`World`]
 use std::any;
 
 use crate::{
+    comp::{Comp, CompMut},
     res::{Res, ResMut},
     World,
 };
@@ -33,6 +34,28 @@ impl<'w, T: 'static> BorrowWorld<'w> for ResMut<'w, T> {
         w.res.borrow_mut().unwrap_or_else(|| {
             panic!(
                 "Tried to borrow resource of type {} for a system",
+                any::type_name::<T>()
+            )
+        })
+    }
+}
+
+impl<'w, T: 'static> BorrowWorld<'w> for Comp<'w, T> {
+    unsafe fn borrow(w: &'w World) -> Self {
+        w.comp.borrow().unwrap_or_else(|| {
+            panic!(
+                "Tried to borrow component pool of type {} for a system",
+                any::type_name::<T>()
+            )
+        })
+    }
+}
+
+impl<'w, T: 'static> BorrowWorld<'w> for CompMut<'w, T> {
+    unsafe fn borrow(w: &'w World) -> Self {
+        w.comp.borrow_mut().unwrap_or_else(|| {
+            panic!(
+                "Tried to borrow component pool of type {} for a system",
                 any::type_name::<T>()
             )
         })
