@@ -29,11 +29,11 @@ fn world_api() {
 
     assert_eq!(world.remove::<isize>(e1), Some(-10));
 
-    // TODO: despawn `e2`
-    // assert!(world.despawn(e2));
-    // assert!(!world.despawn(e2));
-    // let e2 = world.spawn();
-    // assert_eq!(world.entities().collect::<Vec<_>>(), [&e1, &e3, &e2]);
+    assert!(world.despawn(e2));
+    assert!(!world.despawn(e2));
+
+    let e2 = world.spawn();
+    assert_eq!(world.entities().iter().collect::<Vec<_>>(), [&e1, &e3, &e2]);
 
     // TODO: iterate through components
 

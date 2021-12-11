@@ -102,7 +102,11 @@ impl World {
             return false;
         }
 
-        todo!("remove components on despawning an entity");
+        self.comp
+            .iter_mut()
+            .for_each(|comp| comp.erased_remove(ent));
+
+        self.ents.dealloc(ent);
 
         true
     }

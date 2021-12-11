@@ -96,6 +96,12 @@ impl ComponentPoolMap {
         let cell = self.cells.get_mut(&TypeId::of::<T>())?;
         Some(cell.get_mut().erased.downcast_mut().unwrap())
     }
+
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut dyn ErasedComponentPool> {
+        self.cells
+            .values_mut()
+            .map(|cell| &mut *cell.get_mut().erased)
+    }
 }
 
 /// Sparse set of components of type T
