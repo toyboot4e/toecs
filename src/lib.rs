@@ -90,6 +90,11 @@ impl World {
         self.comp.register::<T>()
     }
 
+    /// Registers a set of component pools
+    pub fn register_many<C: ComponentSet>(&mut self) {
+        C::register(self);
+    }
+
     /// Spawns an [`Entity`]
     pub fn spawn<C: ComponentSet>(&mut self, comps: C) -> Entity {
         let ent = self.ents.alloc();
@@ -152,9 +157,19 @@ impl World {
         self.comp_mut::<T>().insert(ent, comp)
     }
 
+    /// Inserts a set of component to an entity
+    pub fn insert_many<C: ComponentSet>(&mut self, ent: Entity, set: C) {
+        set.insert(ent, self);
+    }
+
     /// Removes a component to from entity.
     pub fn remove<T: Component>(&mut self, ent: Entity) -> Option<T> {
         self.comp_mut::<T>().swap_remove(ent)
+    }
+
+    /// Removes a set of component to from entity.
+    pub fn remove_many<C: ComponentSet>(&mut self, ent: Entity) {
+        C::remove(ent, self);
     }
 
     /// Returns a debug display. This is safe because it has exclusive access.

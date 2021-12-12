@@ -10,10 +10,10 @@ fn world_api() {
     assert_eq!(world.set_res(100usize), Some(1));
     world.set_res(-100isize);
 
-    world.register::<usize>();
-    world.register::<isize>();
+    world.register_many::<(usize, isize)>();
 
-    let e1 = world.spawn((10usize, -10isize));
+    let e1 = world.spawn_empty();
+    world.insert_many(e1, (10usize, -10isize));
     let e2 = world.spawn((20usize, -20isize));
     let e3 = world.spawn((30usize, -30isize));
 
@@ -26,6 +26,9 @@ fn world_api() {
     assert_eq!(world.entities().iter().collect::<Vec<_>>(), [&e1, &e3, &e2]);
 
     // TODO: iterate through components
+    world.remove_many::<(usize, isize)>(e1);
+    assert_eq!(world.comp::<usize>().get(e1), None);
+    assert_eq!(world.comp::<isize>().get(e1), None);
 
     // $ cargo test -- --nocapture
     println!("{:#?}", world);
