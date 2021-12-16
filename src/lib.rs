@@ -2,11 +2,14 @@
 Toy ECS based on sparse sets
 */
 
+#![feature(trace_macros)]
+
 #[cfg(test)]
 mod tests;
 
 pub mod comp;
 pub mod ent;
+pub mod query;
 pub mod res;
 pub mod sparse;
 pub mod sys;
@@ -15,6 +18,7 @@ pub mod prelude {
     pub use crate::{
         comp::{Comp, CompMut},
         ent::Entity,
+        query::Iter,
         res::{Res, ResMut},
         sys::System,
         World,
