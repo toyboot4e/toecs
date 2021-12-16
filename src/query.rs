@@ -2,7 +2,11 @@
 Queries: component iteration
 */
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    marker::PhantomData,
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut},
+};
 
 use crate::{
     comp::{Comp, CompMut, Component},
@@ -116,13 +120,13 @@ unsafe impl<'a, T: Component> View<'a> for &'a mut CompMut<'_, T> {
 /// Iterator of items yielded by a [`View`]
 ///
 /// This is fast because it's all about a dense vec.
-pub struct SingleIter<'a, E: View<'a>> {
-    data: SingleIterData<'a, E>,
+pub struct SingleIter<'a, V: View<'a>> {
+    data: SingleIterData<'a, V>,
     index: usize,
 }
 
-impl<'a, E: View<'a>> SingleIter<'a, E> {
-    pub fn entities(self) -> SingleIterWithEntities<'a, E> {
+impl<'a, V: View<'a>> SingleIter<'a, V> {
+    pub fn entities(self) -> SingleIterWithEntities<'a, V> {
         SingleIterWithEntities {
             data: self.data,
             index: self.index,
@@ -133,14 +137,14 @@ impl<'a, E: View<'a>> SingleIter<'a, E> {
 /// Iterator of items and entities yielded by an [`View`]
 ///
 /// This is fast because it's all about two dense vecs.
-pub struct SingleIterWithEntities<'a, E: View<'a>> {
-    data: SingleIterData<'a, E>,
+pub struct SingleIterWithEntities<'a, V: View<'a>> {
+    data: SingleIterData<'a, V>,
     index: usize,
 }
 
-pub(crate) struct SingleIterData<'a, E: View<'a>> {
+pub(crate) struct SingleIterData<'a, V: View<'a>> {
     ents: &'a [Entity],
-    bindings: E::Binding,
+    bindings: V::Binding,
 }
 
 impl<'a, V> Iterator for SingleIter<'a, V>
@@ -194,3 +198,194 @@ impl<'a, V: View<'a>> Iter<'a> for V {
         }
     }
 }
+
+/// Multi-view getter functions
+trait AnyBindingSet<'a, Views> {
+    type Item;
+    fn get(&mut self, ent: Entity) -> Option<Self::Item>;
+}
+
+// Sparse iterators
+
+/// Iterator of multiple items yielded by multiple [`View`] s
+///
+/// This is slow because of the sparse-to-dense map indirection.
+pub struct SparseIter<'a, Bindings, Views, const N: usize> {
+    data: SparseIterData<'a, Bindings, N>,
+    index: usize,
+    _ty: PhantomData<Views>,
+}
+
+impl<'a, Bindings, Views, const N: usize> SparseIter<'a, Bindings, Views, N> {
+    pub fn entities(self) -> SparseIterWithEntities<'a, Bindings, Views, N> {
+        SparseIterWithEntities {
+            data: self.data,
+            index: self.index,
+            _ty: PhantomData,
+        }
+    }
+}
+
+/// Iterator of entities and multiple items yielded by multiple [`View`] s
+///
+/// This is slow because of the sparse-to-dense map indirection.
+pub struct SparseIterWithEntities<'a, Bindings, Views, const N: usize> {
+    data: SparseIterData<'a, Bindings, N>,
+    index: usize,
+    _ty: PhantomData<Views>,
+}
+
+pub(crate) struct SparseIterData<'a, Bindings, const N: usize> {
+    /// Entity set actually used for access
+    ents: &'a [Entity],
+    /// Data sets
+    bindings: Bindings,
+}
+
+macro_rules! impl_sparse_iterator {
+    ($n:expr, $($i_view:tt, $view:tt),+ $(,)?) => {
+        impl<'a, $($view),+> Iter<'a> for ($($view),+)
+        where
+            $($view: View<'a>,)+
+        {
+            type I = SparseIter<'a, ($($view::Binding),+), ($($view),+), $n>;
+
+            fn iter(self) -> Self::I {
+                unsafe {
+                    // FIXME:
+                    // unzip the array of (&[Entity], Binding)
+                    let mut ent_family = [MaybeUninit::uninit(); $n];
+                    let mut bindings = ($(
+                        MaybeUninit::<$view::Binding>::uninit(),
+                    )+);
+
+                    $(
+                        let (ents, set) = self.$i_view.into_parts();
+                        ent_family[$i_view].write(ents);
+                        bindings.$i_view.write(set);
+                    )+
+
+                    let ent_family = [$(
+                        ent_family[$i_view].assume_init(),
+                    )+];
+                    let bindings = ($(
+                        bindings.$i_view.assume_init(),
+                    )+);
+
+                    SparseIter {
+                        data: SparseIterData {
+                            // REMARK: We're choosing the shortest storage's entities as keys
+                            ents: ent_family.iter().min_by_key(|es|es.len()).unwrap_or_else(||unreachable!()),
+                            bindings,
+                        },
+                        index: 0,
+                        _ty: PhantomData,
+                    }
+                }
+            }
+        }
+
+        impl<'a, $($view),+ > AnyBindingSet<'a, ($($view),+),> for ($($view),+)
+        where
+            $($view: AnyBinding,)+
+        {
+            type Item = ($($view::Item),+);
+
+            fn get(&mut self, ent: Entity) -> Option<Self::Item> {
+                Some(($(
+                    self.$i_view.get(ent)?,
+                )+))
+            }
+        }
+
+        impl<'a, $($view),+> Iterator for SparseIter<'a, ($($view::Binding),+), ($($view),+), $n>
+        where
+            $($view: View<'a>,)+
+        {
+            type Item = ($(ViewItem<'a, $view>),+);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                while self.index < self.data.ents.len() {
+                    let index = self.index;
+                    self.index += 1;
+
+                    let ent = self.data.ents[index];
+                    if let Some(items) = self.data.bindings.get(ent) {
+                        return Some(items);
+                    }
+                }
+
+                None
+            }
+        }
+
+        impl<'a, $($view),+> Iterator for SparseIterWithEntities<'a, ($($view::Binding),+), ($($view),+), $n>
+        where
+            $($view: View<'a>,)+
+        {
+            type Item = (Entity, ($(ViewItem<'a, $view>),+));
+
+            fn next(&mut self) -> Option<Self::Item> {
+                while self.index < self.data.ents.len() {
+                    let index = self.index;
+                    self.index += 1;
+
+                    let ent = self.data.ents[index];
+                    if let Some(items) = self.data.bindings.get(ent) {
+                        return Some((ent, items));
+                    }
+                }
+
+                None
+            }
+        }
+    };
+}
+
+/// `macro!(n, 1, C1, 0, C0);` → `macro!(n, 0, C0, 1, C1);`
+macro_rules! reversed {
+    // call the macro when all the parameters are reversed
+	($macro:tt, $n:expr, [] $($reversed:tt,)+) => {
+        $macro!($n, $($reversed),+);
+    };
+    // move the paramaters from [left] to right
+	($macro:tt, $n:expr, [$first_0:tt, $first_1:tt, $($rest_0:tt, $rest_1:tt,)*] $($reversed:tt,)*) => {
+		reversed!($macro, $n, [$($rest_0, $rest_1,)*] $first_0, $first_1, $($reversed,)*);
+	};
+}
+
+macro_rules! recursive_indexed_const_generics {
+    ($macro:path, [$n:expr], $i:tt, $arg:ident) => {
+        // no impl for a single view
+    };
+    ($macro:path, [$n_first:expr $(,$n_rest:expr)+], $i_first:tt, $first:ident, $($i_rest:tt, $rest:ident),*) => {
+        reversed!($macro, $n_first, [$i_first, $first, $($i_rest, $rest,)*]);
+        recursive_indexed_const_generics!($macro, [$($n_rest),+], $($i_rest, $rest),*);
+    };
+    ($macro:path, [$($n_many:expr),+ $(,)?], [$(($i_many:tt, $many:ident)),+ $(,)?]) => {
+        recursive_indexed_const_generics!($macro, [$($n_many),+], $($i_many, $many),*);
+    };
+}
+
+recursive_indexed_const_generics!(
+    impl_sparse_iterator,
+    [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+    [
+        (15, C15),
+        (14, C14),
+        (13, C13),
+        (12, C12),
+        (11, C11),
+        (10, C10),
+        (9, C9),
+        (8, C8),
+        (7, C7),
+        (6, C6),
+        (5, C5),
+        (4, C4),
+        (3, C3),
+        (2, C2),
+        (1, C1),
+        (0, C0),
+    ]
+);
