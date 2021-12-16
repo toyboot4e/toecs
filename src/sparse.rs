@@ -358,6 +358,14 @@ impl<T> SparseSet<T> {
 
         Some(removal)
     }
+
+    pub fn parts(&self) -> (&[Option<DenseIndex>], &[SparseIndex], &[T]) {
+        (&self.to_dense.data, &self.to_sparse, &self.data)
+    }
+
+    pub fn parts_mut(&mut self) -> (&[Option<DenseIndex>], &[SparseIndex], &mut [T]) {
+        (&self.to_dense.data, &self.to_sparse, &mut self.data)
+    }
 }
 
 /// Maps [`SparseIndex`] to [`DenseIndex`], but without checking the generations

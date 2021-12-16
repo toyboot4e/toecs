@@ -16,7 +16,7 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     ent::Entity,
-    sparse::{SparseIndex, SparseSet},
+    sparse::{DenseIndex, SparseIndex, SparseSet},
 };
 
 /// Type boundary for component types
@@ -215,6 +215,16 @@ impl<T> ComponentPool<T> {
 
     pub(crate) fn swap_remove(&mut self, ent: Entity) -> Option<T> {
         self.set.swap_remove(ent.0)
+    }
+
+    pub fn parts(&self) -> (&[Option<DenseIndex>], &[Entity], &[T]) {
+        let (a, b, c) = self.set.parts();
+        (a, Self::to_entities(b), c)
+    }
+
+    pub fn parts_mut(&mut self) -> (&[Option<DenseIndex>], &[Entity], &mut [T]) {
+        let (a, b, c) = self.set.parts_mut();
+        (a, Self::to_entities(b), c)
     }
 }
 
