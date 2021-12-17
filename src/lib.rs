@@ -49,6 +49,21 @@ impl World {
         self.res.insert(res)
     }
 
+    /// Sets a of resources
+    pub fn set_res_many<T: ResourceSet>(&mut self, set: T) {
+        set.insert(self);
+    }
+
+    /// Takes out a resource
+    pub fn take_res<T: Resource>(&mut self) -> Option<T> {
+        self.res.remove()
+    }
+
+    /// Takes out a resource
+    pub fn take_res_many<T: ResourceSet>(&mut self) {
+        T::take(self);
+    }
+
     /// Tries to get an immutable access to a resource of type `T`
     /// # Panics
     /// Panics when breaking the aliaslng rules.
@@ -291,5 +306,56 @@ recursive_indexed!(
         (2, C2),
         (1, C1),
         (0, C0),
+    ]
+);
+
+/// Tuple of resources
+pub trait ResourceSet {
+    /// Inserts the set of resources to the world
+    fn insert(self, world: &mut World);
+    /// Remove the set of resources from the world
+    fn take(world: &mut World);
+}
+
+macro_rules! impl_resource_set {
+    ($($i:tt, $xs:ident),+ $(,)?) => {
+        impl<$($xs),+> ResourceSet for ($($xs,)+)
+        where
+            $($xs: Resource,)+
+        {
+            fn insert(self, world: &mut World) {
+                $(
+                    world.set_res(self.$i);
+                )+
+            }
+
+            fn take(world: &mut World) {
+                $(
+                    world.take_res::<$xs>();
+                )+
+            }
+        }
+    };
+}
+
+recursive_indexed!(
+    impl_resource_set,
+    [
+        (15, R15),
+        (14, R14),
+        (13, R13),
+        (12, R12),
+        (11, R11),
+        (10, R10),
+        (9, R9),
+        (8, R8),
+        (7, R7),
+        (6, R6),
+        (5, R5),
+        (4, R4),
+        (3, R3),
+        (2, R2),
+        (1, R1),
+        (0, R0),
     ]
 );
