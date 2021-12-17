@@ -15,12 +15,14 @@ pub mod sparse;
 pub mod sys;
 
 pub mod prelude {
+    pub use anyhow::{anyhow, bail, ensure, Context, Error};
+
     pub use crate::{
         comp::{Comp, CompMut},
         ent::Entity,
         query::Iter,
         res::{Res, ResMut},
-        sys::System,
+        sys::{System, SystemResult},
         World,
     };
 }

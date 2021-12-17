@@ -1,6 +1,11 @@
 /*!
 Systems: procedures that operate on the [`World`]
+
+System can return either `()` or [`SystemResult`]
 */
+
+/// Alias of [`anyhow::Result`]
+pub type SystemResult<T = ()> = anyhow::Result<T>;
 
 use std::any;
 
@@ -63,24 +68,38 @@ impl<'w, T: Component> BorrowWorld<'w> for CompMut<'w, T> {
 }
 
 /// Procedure that borrows some set of data from the `World` to run
-pub unsafe trait System<'w, Params> {
+pub unsafe trait System<'w, Params, Ret> {
     /// # Panics
     /// - Panics when breaking the aliasing rules
-    unsafe fn run(&mut self, w: &'w World);
+    unsafe fn run(&mut self, w: &'w World) -> SystemResult;
 }
 
 // NOTE: `(T)` is `T` while `(T,)` is a tuple
 macro_rules! impl_run {
     ($($xs:ident),+ $(,)?) => {
-        unsafe impl<'w, $($xs),+, F> System<'w, ($($xs,)+)> for F
+        unsafe impl<'w, $($xs),+, F> System<'w, ($($xs,)+), ()> for F
         where
-            F: FnMut($($xs),+),
+            F: FnMut($($xs),+) -> (),
             $($xs: BorrowWorld<'w>),+
         {
-            unsafe fn run(&mut self, w: &'w World) {
+            unsafe fn run(&mut self, w: &'w World) -> SystemResult {
                 (self)(
                     $(<$xs as BorrowWorld>::borrow(w),)+
-                )
+                );
+                Ok(())
+            }
+        }
+
+        unsafe impl<'w, $($xs),+, F> System<'w, ($($xs,)+), SystemResult> for F
+        where
+            F: FnMut($($xs),+) -> SystemResult,
+            $($xs: BorrowWorld<'w>),+
+        {
+            unsafe fn run(&mut self, w: &'w World) -> SystemResult {
+                (self)(
+                    $(<$xs as BorrowWorld>::borrow(w),)+
+                )?;
+                Ok(())
             }
         }
     };

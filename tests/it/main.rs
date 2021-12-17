@@ -64,7 +64,7 @@ fn single_iter() {
     }
 
     unsafe {
-        add_system.run(&mut world);
+        add_system.run(&mut world).unwrap();
     }
 
     assert_eq!(
@@ -97,7 +97,7 @@ fn sparse_iter() {
     }
 
     unsafe {
-        add_system.run(&mut world);
+        add_system.run(&mut world).unwrap();
     }
 
     assert_eq!(
@@ -123,7 +123,7 @@ fn sparse_iter() {
     }
 
     unsafe {
-        triple.run(&world);
+        triple.run(&world).unwrap();
     }
 
     assert_eq!(world.comp::<usize>().get(e), Some(&(10 + 20 + 30)));

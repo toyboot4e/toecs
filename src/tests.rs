@@ -56,7 +56,7 @@ fn resource_system() {
     world.res.insert(30isize);
 
     unsafe {
-        system.run(&world);
+        system.run(&world).unwrap();
     }
     assert_eq!(*world.res.borrow::<isize>().unwrap(), 10 + 30);
 }
