@@ -22,7 +22,7 @@ pub mod prelude {
         ent::Entity,
         query::Iter,
         res::{Res, ResMut},
-        sys::{System, SystemResult},
+        sys::SystemResult,
         World,
     };
 }
@@ -33,6 +33,7 @@ use crate::{
     comp::{Comp, CompMut, Component, ComponentPoolMap},
     ent::{Entity, EntityPool},
     res::{Res, ResMut, Resource, ResourceMap},
+    sys::{System, SystemResult},
 };
 
 /// In-memory central DB
@@ -191,6 +192,15 @@ impl World {
     /// Removes a set of component to from entity.
     pub fn remove_many<C: ComponentSet>(&mut self, ent: Entity) {
         C::remove(ent, self);
+    }
+
+    /// # Panics
+    /// Panics if the system borrows unregistered data or if the system has self confliction.
+    pub fn run<'w, Params, Ret, S: System<'w, Params, Ret>>(
+        &'w mut self,
+        mut sys: S,
+    ) -> SystemResult {
+        unsafe { sys.run(self) }
     }
 
     /// Returns a debug display. This is safe because it has exclusive access.
