@@ -200,6 +200,10 @@ impl World {
         &'w mut self,
         mut sys: S,
     ) -> SystemResult {
+        debug_assert!(
+            !sys.accesses().self_conflict(),
+            "The system has self confliction!"
+        );
         unsafe { sys.run(self) }
     }
 

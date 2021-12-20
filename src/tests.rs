@@ -1,7 +1,8 @@
 use crate::{
-    comp::ComponentPoolMap,
+    comp::{Comp, CompMut, ComponentPoolMap},
     ent::EntityPool,
     res::{Res, ResMut, ResourceMap},
+    sys::System,
     World,
 };
 
@@ -45,8 +46,6 @@ fn resource_safe() {
 
 #[test]
 fn resource_system() {
-    use crate::sys::System;
-
     fn system(x: Res<usize>, mut y: ResMut<isize>) {
         *y = *x as isize + *y;
     }
@@ -213,4 +212,41 @@ fn component_set() {
 
     assert_eq!(world.comp::<usize>().get(e0), None);
     assert_eq!(world.comp::<isize>().get(e0), None);
+}
+
+#[test]
+fn confliction() {
+    // If you forget `Debug`, `System` is not implemented
+    #[derive(Debug)]
+    struct A;
+    #[derive(Debug)]
+    struct B;
+    #[derive(Debug)]
+    struct C;
+
+    fn self_conflict(_a1: Res<A>, _a2: ResMut<A>) {}
+    fn free(_a1: Res<A>, _a2: Res<A>) {}
+
+    assert!(self_conflict.accesses().self_conflict());
+    assert!(!free.accesses().self_conflict());
+
+    {
+        fn im_(_a: Comp<A>, _b: CompMut<B>, _c: Res<C>) {}
+        fn i_i(_a: Comp<A>, _b: Res<B>, _c: Comp<C>) {}
+        fn iii(_a: Comp<A>, _b: Comp<B>, _c: Comp<C>) {}
+
+        assert!(!im_.accesses().conflicts(&i_i.accesses()));
+        assert!(!i_i.accesses().conflicts(&iii.accesses()));
+        assert!(iii.accesses().conflicts(&im_.accesses()));
+    }
+
+    {
+        fn im_(_a: Res<A>, _b: ResMut<B>, _c: Comp<C>) {}
+        fn i_i(_a: Res<A>, _b: Comp<B>, _c: Res<C>) {}
+        fn iii(_a: Res<A>, _b: Res<B>, _c: Res<C>) {}
+
+        assert!(!im_.accesses().conflicts(&i_i.accesses()));
+        assert!(!i_i.accesses().conflicts(&iii.accesses()));
+        assert!(iii.accesses().conflicts(&im_.accesses()));
+    }
 }

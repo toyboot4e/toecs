@@ -7,7 +7,7 @@ System can return either `()` or [`SystemResult`]
 /// Alias of [`anyhow::Result`]
 pub type SystemResult<T = ()> = anyhow::Result<T>;
 
-use std::any;
+use std::any::{self, TypeId};
 
 use crate::{
     comp::{Comp, CompMut, Component},
@@ -21,7 +21,31 @@ pub trait BorrowWorld<'w> {
     /// # Panics
     /// - Panics when breaking the aliasing rules
     unsafe fn borrow(w: &'w World) -> Self;
+    fn access() -> Access;
 }
+
+/// Type-erased declaration of access to the [`World`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Access {
+    Res(TypeId),
+    ResMut(TypeId),
+    Comp(TypeId),
+    CompMut(TypeId),
+}
+
+impl Access {
+    pub fn conflicts(self, other: Self) -> bool {
+        match (self, other) {
+            (Self::Res(i0), Self::ResMut(i1)) => i0 == i1,
+            (Self::ResMut(i0), Self::Res(i1) | Self::ResMut(i1)) => i0 == i1,
+            (Self::Comp(i0), Self::CompMut(i1)) => i0 == i1,
+            (Self::CompMut(i0), Self::Comp(i1) | Self::CompMut(i1)) => i0 == i1,
+            _ => false,
+        }
+    }
+}
+
+// `BorrowWorld` impls for system parameters
 
 impl<'w, T: Resource> BorrowWorld<'w> for Res<'w, T> {
     unsafe fn borrow(w: &'w World) -> Self {
@@ -31,6 +55,9 @@ impl<'w, T: Resource> BorrowWorld<'w> for Res<'w, T> {
                 any::type_name::<T>()
             )
         })
+    }
+    fn access() -> Access {
+        Access::Res(TypeId::of::<T>())
     }
 }
 
@@ -43,6 +70,9 @@ impl<'w, T: Resource> BorrowWorld<'w> for ResMut<'w, T> {
             )
         })
     }
+    fn access() -> Access {
+        Access::ResMut(TypeId::of::<T>())
+    }
 }
 
 impl<'w, T: Component> BorrowWorld<'w> for Comp<'w, T> {
@@ -53,6 +83,9 @@ impl<'w, T: Component> BorrowWorld<'w> for Comp<'w, T> {
                 any::type_name::<T>()
             )
         })
+    }
+    fn access() -> Access {
+        Access::Comp(TypeId::of::<T>())
     }
 }
 
@@ -65,6 +98,9 @@ impl<'w, T: Component> BorrowWorld<'w> for CompMut<'w, T> {
             )
         })
     }
+    fn access() -> Access {
+        Access::CompMut(TypeId::of::<T>())
+    }
 }
 
 /// Procedure that borrows some set of data from the `World` to run
@@ -72,6 +108,32 @@ pub unsafe trait System<'w, Params, Ret> {
     /// # Panics
     /// - Panics when breaking the aliasing rules
     unsafe fn run(&mut self, w: &'w World) -> SystemResult;
+    /// Returns accesses to the [`World`]
+    fn accesses(&self) -> AccessSet;
+}
+
+/// Type-erased [`Access`] es to the [`World`]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AccessSet(Box<[Access]>);
+
+impl AccessSet {
+    /// Checks if the two set of accesses can be got at the same time
+    pub fn conflicts(&self, other: &AccessSet) -> bool {
+        self.0
+            .iter()
+            .any(|a1| other.0.iter().any(|a2| a2.conflicts(*a1)))
+    }
+
+    pub fn self_conflict(self) -> bool {
+        for i in 0..(self.0.len() - 1) {
+            for j in i + 1..self.0.len() {
+                if self.0[i].conflicts(self.0[j]) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
 
 // NOTE: `(T)` is `T` while `(T,)` is a tuple
@@ -88,6 +150,12 @@ macro_rules! impl_run {
                 );
                 Ok(())
             }
+
+            fn accesses(&self) -> AccessSet {
+                AccessSet(Box::new([$(
+                     <$xs as BorrowWorld>::access(),
+                )+]))
+            }
         }
 
         unsafe impl<'w, $($xs),+, F> System<'w, ($($xs,)+), SystemResult> for F
@@ -100,6 +168,12 @@ macro_rules! impl_run {
                     $(<$xs as BorrowWorld>::borrow(w),)+
                 )?;
                 Ok(())
+            }
+
+            fn accesses(&self) -> AccessSet {
+                AccessSet(Box::new([$(
+                     <$xs as BorrowWorld>::access(),
+                )+]))
             }
         }
     };
