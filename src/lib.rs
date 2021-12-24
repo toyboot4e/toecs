@@ -95,7 +95,7 @@ impl World {
     }
 
     /// Tries to get a mutable access to a resource of type `T`
-    /// # Safety
+    /// # Panics
     /// Panics when breaking the aliaslng rules. Panics when the resource is not set.
     pub fn res_mut<T: Resource>(&self) -> ResMut<T> {
         self.maybe_res_mut::<T>()
@@ -159,7 +159,7 @@ impl World {
     }
 
     /// Tries to get a mutable access to a coponent pool of type `Tn`
-    /// # Safety
+    /// # Panics
     /// Panics if the component pool is not registered. Panics when breaking the aliaslng rules.
     pub fn comp_mut<T: Component>(&self) -> CompMut<T> {
         self.comp

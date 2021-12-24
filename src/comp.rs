@@ -70,7 +70,7 @@ impl ComponentPoolMap {
     }
 
     /// Tries to get an immutable access to a component pool
-    /// # Safety
+    /// # Panics
     /// Panics when breaking the aliasing rules.
     pub fn borrow<T: Component>(&self) -> Option<Comp<T>> {
         let cell = self.cells.get(&TypeId::of::<T>())?;
