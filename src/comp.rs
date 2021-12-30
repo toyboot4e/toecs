@@ -10,9 +10,11 @@ use std::{
     fmt, mem, ops, slice,
 };
 
+use crate::ComponentSet;
+
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use downcast_rs::{impl_downcast, Downcast};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     ent::Entity,
@@ -30,6 +32,7 @@ impl<T: 'static + fmt::Debug + Downcast> Component for T {}
 #[derive(Debug, Default)]
 pub struct ComponentPoolMap {
     cells: FxHashMap<TypeId, AtomicRefCell<ErasedPool>>,
+    _layout: Layout,
 }
 
 #[derive(Debug)]
@@ -48,8 +51,19 @@ pub(crate) trait ErasedComponentPool: Downcast + fmt::Debug {
 impl_downcast!(ErasedComponentPool);
 
 impl ComponentPoolMap {
+    pub fn from_layout(_layout: Layout) -> Self {
+        todo!()
+    }
+
     pub fn is_registered<T: Component>(&self) -> bool {
         let ty = TypeId::of::<T>();
+        self.is_registered_raw(ty)
+    }
+
+    /// [`is_registered`] by `TypeId`
+    ///
+    /// [`is_registered`]: Self::is_registered
+    pub fn is_registered_raw(&self, ty: TypeId) -> bool {
         self.cells.contains_key(&ty)
     }
 
@@ -270,4 +284,136 @@ impl<'r, T> ops::DerefMut for CompMut<'r, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()
     }
+}
+
+/// Defines order of components in component pool
+#[derive(Debug, Default, Clone)]
+pub struct Layout {
+    families: Vec<ComponentFamily>,
+}
+
+impl Layout {
+    pub fn builder() -> LayoutBuilder {
+        LayoutBuilder::default()
+    }
+
+    pub fn families(&self) -> &[ComponentFamily] {
+        &self.families
+    }
+}
+
+/// Set of [`ComponentGroup`] s
+#[derive(Debug, Clone)]
+pub struct ComponentFamily {
+    /// Seen by `window(2)`, the RHS is always a sub set of the LHS
+    groups: Vec<ComponentGroup>,
+}
+
+/// Set of [`Component`] types
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComponentGroup {
+    types: FxHashSet<TypeId>,
+}
+
+impl ComponentGroup {
+    pub fn arity(&self) -> usize {
+        self.types.len()
+    }
+
+    pub fn is_subset(&self, other: &Self) -> bool {
+        self.types.is_subset(&other.types)
+    }
+
+    pub fn is_superset(&self, other: &Self) -> bool {
+        self.types.is_superset(&other.types)
+    }
+
+    pub fn is_disjoint(&self, other: &Self) -> bool {
+        self.types.is_disjoint(&other.types)
+    }
+
+    pub fn contains(&self, ty: &TypeId) -> bool {
+        self.types.contains(ty)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LayoutBuilder {
+    layout: Layout,
+}
+
+impl LayoutBuilder {
+    /// # Panics
+    /// Panics if the group intersects with any other.
+    pub fn group<T: ComponentSet>(self) -> Self {
+        let group = {
+            let mut types = FxHashSet::default();
+            for ty in &*T::type_ids() {
+                types.insert(*ty);
+            }
+            ComponentGroup { types }
+        };
+
+        self.group_raw(group)
+    }
+
+    fn group_raw(mut self, group: ComponentGroup) -> Self {
+        assert!(
+            group.arity() >= 2,
+            "Group must have more than or equal to 2 types"
+        );
+
+        if let Some(family_ix) = self::find_non_disjoint_family(&self.layout.families, &group) {
+            let (i, g) = self.find_target_group(family_ix, &group);
+
+            if *g == group {
+                return self;
+            }
+
+            if g.arity() == group.arity() {
+                panic!("Tried to create invalid layout");
+            }
+
+            assert!(g.is_subset(&group));
+
+            let family = &mut self.layout.families[family_ix];
+
+            for g in &family.groups[0..i] {
+                assert!(g.is_superset(&group));
+            }
+
+            family.groups.insert(i, group);
+        } else {
+            self.layout.families.push(ComponentFamily {
+                groups: vec![group],
+            });
+        }
+
+        self
+    }
+
+    fn find_target_group(
+        &self,
+        family_ix: usize,
+        target_group: &ComponentGroup,
+    ) -> (usize, &ComponentGroup) {
+        self.layout.families[family_ix]
+            .groups
+            .iter()
+            .enumerate()
+            .find(|(_i, g)| g.arity() <= target_group.arity())
+            .unwrap_or_else(|| (0, &self.layout.families[family_ix].groups[0]))
+    }
+
+    pub fn build(self) -> Layout {
+        self.layout
+    }
+}
+
+fn find_non_disjoint_family(families: &[ComponentFamily], group: &ComponentGroup) -> Option<usize> {
+    families
+        .iter()
+        .enumerate()
+        .find(|(_i, f)| !f.groups[0].is_disjoint(&group))
+        .map(|(i, _f)| i)
 }

@@ -27,7 +27,11 @@ pub mod prelude {
     };
 }
 
-use std::{any, cell::RefCell, fmt, mem};
+use std::{
+    any::{self, TypeId},
+    cell::RefCell,
+    fmt, mem,
+};
 
 use crate::{
     comp::{Comp, CompMut, Component, ComponentPoolMap},
@@ -105,6 +109,13 @@ impl World {
     /// Checks if we have a component pool for type `T`
     pub fn is_registered<T: Component>(&self) -> bool {
         self.comp.is_registered::<T>()
+    }
+
+    /// [`is_registered`] by `TypeId`
+    ///
+    /// [`is_registered`]: Self::is_registered
+    pub fn is_registered_raw(&self, ty: TypeId) -> bool {
+        self.comp.is_registered_raw(ty)
     }
 
     /// Registers a component pool for type `T`. Returns true if it was already registered.
@@ -248,6 +259,8 @@ pub trait ComponentSet {
     fn insert(self, ent: Entity, world: &mut World);
     /// Removes the set of components from an entity
     fn remove(ent: Entity, world: &mut World);
+    /// Enumerates the component types in this set
+    fn type_ids() -> Box<[TypeId]>;
 }
 
 // NOTE: `(T)` is `T` while `(T,)` is a tuple
@@ -273,6 +286,12 @@ macro_rules! impl_component_set {
                 $(
                     world.remove::<$xs>(ent);
                 )+
+            }
+
+            fn type_ids() -> Box<[TypeId]> {
+                Box::new([
+                    $(TypeId::of::<$xs>(),)+
+                ])
             }
         }
     };

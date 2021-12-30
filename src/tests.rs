@@ -250,3 +250,51 @@ fn confliction() {
         assert!(iii.accesses().conflicts(&im_.accesses()));
     }
 }
+
+#[test]
+fn layout_non_intersect() {
+    use crate::comp::Layout;
+
+    #[derive(Debug)]
+    struct A;
+    #[derive(Debug)]
+    struct B;
+    #[derive(Debug)]
+    struct C;
+    #[derive(Debug)]
+    struct D;
+    #[derive(Debug)]
+    struct E;
+    #[derive(Debug)]
+    struct F;
+
+    let layout = Layout::builder()
+        .group::<(A, B)>()
+        .group::<(A, B, C)>()
+        .group::<(A, B, C, D)>()
+        .group::<(E, F)>()
+        .build();
+
+    assert_eq!(layout.families().len(), 2);
+}
+
+#[test]
+#[should_panic]
+fn layout_intersect() {
+    use crate::comp::Layout;
+
+    #[derive(Debug)]
+    struct A;
+    #[derive(Debug)]
+    struct B;
+    #[derive(Debug)]
+    struct C;
+    #[derive(Debug)]
+    struct D;
+
+    Layout::builder()
+        .group::<(A, B)>()
+        .group::<(A, B, C)>()
+        .group::<(A, B, D)>()
+        .build();
+}
