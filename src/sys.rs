@@ -4,10 +4,10 @@ Systems: procedures that operate on the [`World`]
 System can return either `()` or [`SystemResult`]
 */
 
-/// Alias of [`anyhow::Result`]
-pub type SystemResult<T = ()> = anyhow::Result<T>;
-
-use std::any::{self, TypeId};
+use std::{
+    any::{self, TypeId},
+    fmt,
+};
 
 use crate::{
     comp::{Comp, CompMut, Component},
@@ -15,13 +15,20 @@ use crate::{
     World,
 };
 
+/// Alias of [`anyhow::Result`]
+pub type SystemResult<T = ()> = anyhow::Result<T>;
+
 /// Upcast of types that borrow some data from a `World`
+///
+/// One use case of custom implmenetation is to define different read/write API over the same
+/// resource such as `EventRead<T>` and `EventWrite<T>` that is backed by the same double buffer for
+/// the type `T`.
 pub trait BorrowWorld<'w> {
     /// Borrows some data from the world
     /// # Panics
     /// - Panics when breaking the aliasing rules
     unsafe fn borrow(w: &'w World) -> Self;
-    fn access() -> Access;
+    fn accesses() -> AccessSet;
 }
 
 /// Type-erased declaration of access to the [`World`]
@@ -56,8 +63,8 @@ impl<'w, T: Resource> BorrowWorld<'w> for Res<'w, T> {
             )
         })
     }
-    fn access() -> Access {
-        Access::Res(TypeId::of::<T>())
+    fn accesses() -> AccessSet {
+        AccessSet::single(Access::Res(TypeId::of::<T>()))
     }
 }
 
@@ -70,8 +77,8 @@ impl<'w, T: Resource> BorrowWorld<'w> for ResMut<'w, T> {
             )
         })
     }
-    fn access() -> Access {
-        Access::ResMut(TypeId::of::<T>())
+    fn accesses() -> AccessSet {
+        AccessSet::single(Access::ResMut(TypeId::of::<T>()))
     }
 }
 
@@ -84,8 +91,8 @@ impl<'w, T: Component> BorrowWorld<'w> for Comp<'w, T> {
             )
         })
     }
-    fn access() -> Access {
-        Access::Comp(TypeId::of::<T>())
+    fn accesses() -> AccessSet {
+        AccessSet::single(Access::Comp(TypeId::of::<T>()))
     }
 }
 
@@ -98,8 +105,8 @@ impl<'w, T: Component> BorrowWorld<'w> for CompMut<'w, T> {
             )
         })
     }
-    fn access() -> Access {
-        Access::CompMut(TypeId::of::<T>())
+    fn accesses() -> AccessSet {
+        AccessSet::single(Access::CompMut(TypeId::of::<T>()))
     }
 }
 
@@ -113,18 +120,30 @@ pub unsafe trait System<'w, Params, Ret> {
 }
 
 /// Type-erased [`Access`] es to the [`World`]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AccessSet(Box<[Access]>);
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub struct AccessSet(Vec<Access>);
+
+#[derive(Default, Clone, PartialEq, Eq, Hash)]
+pub struct MergeError(AccessSet);
+
+impl fmt::Display for MergeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "resulted in conflicting accesses: {:?}", self.0)
+    }
+}
 
 impl AccessSet {
     /// Checks if the two set of accesses can be got at the same time
-    pub fn conflicts(&self, other: &AccessSet) -> bool {
+    pub fn conflicts(&self, other: &Self) -> bool {
         self.0
             .iter()
             .any(|a1| other.0.iter().any(|a2| a2.conflicts(*a1)))
     }
 
-    pub fn self_conflict(self) -> bool {
+    pub fn self_conflict(&self) -> bool {
+        if self.0.len() == 0 {
+            return false;
+        }
         for i in 0..(self.0.len() - 1) {
             for j in i + 1..self.0.len() {
                 if self.0[i].conflicts(self.0[j]) {
@@ -133,6 +152,27 @@ impl AccessSet {
             }
         }
         false
+    }
+
+    fn single(access: Access) -> Self {
+        Self(vec![access])
+    }
+
+    /// Sums up two accesses. Returns `Ok` if the merged accesses are not self-conflicting.
+    // FIXME: fold merge efficiency
+    pub fn merge(&self, other: &Self) -> Result<Self, Self> {
+        let mut set = self.clone();
+        set.merge_impl(other);
+
+        if !set.self_conflict() {
+            Ok(set)
+        } else {
+            Err(set)
+        }
+    }
+
+    fn merge_impl(&mut self, other: &Self) {
+        self.0.extend(&other.0);
     }
 }
 
@@ -146,15 +186,19 @@ macro_rules! impl_run {
         {
             unsafe fn run(&mut self, w: &'w World) -> SystemResult {
                 (self)(
-                    $(<$xs as BorrowWorld>::borrow(w),)+
+                    $($xs::borrow(w),)+
                 );
                 Ok(())
             }
 
             fn accesses(&self) -> AccessSet {
-                AccessSet(Box::new([$(
-                     <$xs as BorrowWorld>::access(),
-                )+]))
+                let mut set = AccessSet::default();
+                [$(
+                    $xs::accesses(),
+                )+]
+                    .iter()
+                    .for_each(|a| set.merge_impl(a));
+                set
             }
         }
 
@@ -165,15 +209,19 @@ macro_rules! impl_run {
         {
             unsafe fn run(&mut self, w: &'w World) -> SystemResult {
                 (self)(
-                    $(<$xs as BorrowWorld>::borrow(w),)+
+                    $($xs::borrow(w),)+
                 )?;
                 Ok(())
             }
 
             fn accesses(&self) -> AccessSet {
-                AccessSet(Box::new([$(
-                     <$xs as BorrowWorld>::access(),
-                )+]))
+                let mut set = AccessSet::default();
+                [$(
+                    $xs::accesses(),
+                )+]
+                    .iter()
+                    .for_each(|a| set.merge_impl(a));
+                set
             }
         }
     };
