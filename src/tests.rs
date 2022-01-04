@@ -200,7 +200,7 @@ fn component_set() {
     use crate::ComponentSet;
 
     type A = (usize, isize);
-    A::register(&mut world);
+    world.register_many::<A>();
 
     let e0 = world.spawn_empty();
     (10usize, -10isize).insert(e0, &mut world);
@@ -268,14 +268,19 @@ fn layout_non_intersect() {
     #[derive(Debug)]
     struct F;
 
-    let layout = Layout::builder()
+    let map = Layout::builder()
         .group::<(A, B)>()
         .group::<(A, B, C)>()
         .group::<(A, B, C, D)>()
         .group::<(E, F)>()
         .build();
 
-    assert_eq!(layout.families().len(), 2);
+    assert_eq!(map.layout().families().len(), 2);
+
+    assert!(map.is_registered::<A>());
+    assert!(map.is_registered::<B>());
+    assert!(map.is_registered::<C>());
+    assert!(map.is_registered::<D>());
 }
 
 #[test]

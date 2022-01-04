@@ -32,7 +32,7 @@ impl<T: 'static + fmt::Debug + Downcast> Component for T {}
 #[derive(Debug, Default)]
 pub struct ComponentPoolMap {
     cells: FxHashMap<TypeId, AtomicRefCell<ErasedPool>>,
-    _layout: Layout,
+    layout: Layout,
 }
 
 #[derive(Debug)]
@@ -50,11 +50,29 @@ pub(crate) trait ErasedComponentPool: Downcast + fmt::Debug {
 
 impl_downcast!(ErasedComponentPool);
 
+/// Groups
 impl ComponentPoolMap {
-    pub fn from_layout(_layout: Layout) -> Self {
-        todo!()
+    pub fn layout(&self) -> &Layout {
+        &self.layout
     }
 
+    pub(crate) fn family_ix<T: Component>(&self) -> Option<Index<ComponentFamily>> {
+        let i = *self.to_index.get(&TypeId::of::<T>())?;
+        self.metas[i].family
+    }
+
+    /// Syncronizes component storages on inserting new components
+    pub(crate) fn sync_family_components(&self, ent: Entity, family: Index<ComponentFamily>) {
+        let family = &self.layout.families[family.raw];
+        let groups = &family.groups;
+
+        // let first = groups[0].types;
+        // let index = first.set.dense_index(ent);
+        todo!()
+    }
+}
+
+impl ComponentPoolMap {
     pub fn is_registered<T: Component>(&self) -> bool {
         let ty = TypeId::of::<T>();
         self.is_registered_raw(ty)
@@ -337,27 +355,28 @@ impl ComponentGroup {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+/// See [`World::from_layout`]
+#[derive(Default)]
 pub struct LayoutBuilder {
     layout: Layout,
+    /// Regsiters component pools on `build` ing `ComponetnPoolMap`
+    register_fn: Vec<Box<dyn FnMut(&mut ComponentPoolMap)>>,
 }
 
 impl LayoutBuilder {
     /// # Panics
     /// Panics if the group intersects with any other.
-    pub fn group<T: ComponentSet>(self) -> Self {
-        let group = {
-            let mut types = FxHashSet::default();
-            for ty in &*T::type_ids() {
-                types.insert(*ty);
-            }
-            ComponentGroup { types }
+    pub fn group<T: 'static + ComponentSet>(&mut self) -> &mut Self {
+        let group = ComponentGroup {
+            types: FxHashSet::from_iter(T::type_ids().into_iter().cloned()),
         };
 
-        self.group_raw(group)
+        self.register_fn.push(Box::new(T::register));
+
+        self.insert_group(group)
     }
 
-    fn group_raw(mut self, group: ComponentGroup) -> Self {
+    fn insert_group(&mut self, group: ComponentGroup) -> &mut Self {
         assert!(
             group.arity() >= 2,
             "Group must have more than or equal to 2 types"
@@ -405,8 +424,21 @@ impl LayoutBuilder {
             .unwrap_or_else(|| (0, &self.layout.families[family_ix].groups[0]))
     }
 
-    pub fn build(self) -> Layout {
-        self.layout
+    /// Clears the builder and creates component pools
+    pub fn build(&mut self) -> ComponentPoolMap {
+        let mut layout = Layout::default();
+        std::mem::swap(&mut layout, &mut self.layout);
+
+        let mut map = ComponentPoolMap {
+            layout,
+            ..Default::default()
+        };
+
+        for mut f in self.register_fn.drain(0..) {
+            f(&mut map);
+        }
+
+        map
     }
 }
 

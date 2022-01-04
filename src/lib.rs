@@ -34,7 +34,7 @@ use std::{
 };
 
 use crate::{
-    comp::{Comp, CompMut, Component, ComponentPoolMap},
+    comp::{Comp, CompMut, Component, ComponentPoolMap, LayoutBuilder},
     ent::{Entity, EntityPool},
     res::{Res, ResMut, Resource, ResourceMap},
     sys::{System, SystemResult},
@@ -48,7 +48,17 @@ pub struct World {
     comp: ComponentPoolMap,
 }
 
+unsafe impl Send for World {}
+unsafe impl Sync for World {}
+
 impl World {
+    pub fn from_layout(mut layout: LayoutBuilder) -> Self {
+        Self {
+            comp: layout.build(),
+            ..Default::default()
+        }
+    }
+
     /// Sets a resource, a unique instance of type `T`. Returns some old value if it's present.
     pub fn set_res<T: Resource>(&mut self, res: T) -> Option<T> {
         self.res.insert(res)
@@ -125,7 +135,7 @@ impl World {
 
     /// Registers a set of component pools
     pub fn register_many<C: ComponentSet>(&mut self) {
-        C::register(self);
+        C::register(&mut self.comp);
     }
 
     /// Spawns an [`Entity`]
@@ -254,7 +264,7 @@ impl<'w> fmt::Debug for WorldDisplay<'w> {
 /// One ore more components
 pub trait ComponentSet {
     /// Registers the set of component storages to the world
-    fn register(world: &mut World);
+    fn register(map: &mut ComponentPoolMap);
     /// Inserts the set of components to an entity
     fn insert(self, ent: Entity, world: &mut World);
     /// Removes the set of components from an entity
@@ -270,16 +280,29 @@ macro_rules! impl_component_set {
         where
             $($xs: Component,)+
         {
-            fn register(world: &mut World) {
+            fn register(map: &mut ComponentPoolMap) {
                 $(
-                    world.register::<$xs>();
+                    map.register::<$xs>();
                 )+
             }
 
             fn insert(self, ent: Entity, world: &mut World) {
+                // set of new component families
+                // TODO: consider using bitset
+                let mut set = rustc_hash::FxHashSet::default();
+
                 $(
-                    world.insert(ent, self.$i);
+                    // on new component insertion
+                    if world.insert(ent, self.$i).is_none() {
+                        if let Some(family_ix) = world.comp.family_ix::<$xs>() {
+                            set.insert(family_ix);
+                        }
+                    }
                 )+
+
+                for family_ix in &set {
+                    world.comp.sync_family_components(ent, *family_ix);
+                }
             }
 
             fn remove(ent: Entity, world: &mut World) {
