@@ -18,18 +18,28 @@ use crate::{
 /// Alias of [`anyhow::Result`]
 pub type SystemResult<T = ()> = anyhow::Result<T>;
 
-/// Upcast of types that borrow some data from a `World`
+/// Types that borrow some data from a `World`: `Res<T>`, `Comp<T>`, ..
 ///
-/// One use case of custom implmenetation is to define different read/write API over the same
-/// resource such as `EventRead<T>` and `EventWrite<T>` that is backed by the same double buffer for
-/// the type `T`.
+/// This type is basically [`BorrowWorld`], but actially a different type just to emulate GAT on
+/// stable Rust.
+pub trait GatBorrowWorld {
+    /// Emulates `Item<'w>` with `<GatBorrowWorld::Borrow as BorrowWorld<'w>>::Item`
+    type Borrow: for<'a> BorrowWorld<'a>;
+}
+
+/// (Internal) Type specified in `GatBorrowWorld::Borrow` that implements actual borrow
 pub trait BorrowWorld<'w> {
+    type Item;
     /// Borrows some data from the world
     /// # Panics
     /// - Panics when breaking the aliasing rules
-    unsafe fn borrow(w: &'w World) -> Self;
+    unsafe fn borrow(w: &'w World) -> Self::Item;
     fn accesses() -> AccessSet;
 }
+
+// shorthand for associated types
+pub type Borrow<T> = <T as GatBorrowWorld>::Borrow;
+pub type BorrowItem<'w, T> = <Borrow<T> as BorrowWorld<'w>>::Item;
 
 /// Type-erased declaration of access to the [`World`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -52,10 +62,16 @@ impl Access {
     }
 }
 
-// `BorrowWorld` impls for system parameters
+/// (Internal) Hack for emulating GAT on stable Rust
+pub struct GatHack<T>(::core::marker::PhantomData<T>);
 
-impl<'w, T: Resource> BorrowWorld<'w> for Res<'w, T> {
-    unsafe fn borrow(w: &'w World) -> Self {
+impl<T: Resource> GatBorrowWorld for Res<'_, T> {
+    type Borrow = GatHack<Self>;
+}
+
+impl<'w, T: Resource> BorrowWorld<'w> for GatHack<Res<'_, T>> {
+    type Item = Res<'w, T>;
+    unsafe fn borrow(w: &'w World) -> Self::Item {
         w.res.borrow().unwrap_or_else(|| {
             panic!(
                 "Tried to borrow resource of type {} for a system",
@@ -68,8 +84,13 @@ impl<'w, T: Resource> BorrowWorld<'w> for Res<'w, T> {
     }
 }
 
-impl<'w, T: Resource> BorrowWorld<'w> for ResMut<'w, T> {
-    unsafe fn borrow(w: &'w World) -> Self {
+impl<T: Resource> GatBorrowWorld for ResMut<'_, T> {
+    type Borrow = GatHack<Self>;
+}
+
+impl<'w, T: Resource> BorrowWorld<'w> for GatHack<ResMut<'_, T>> {
+    type Item = ResMut<'w, T>;
+    unsafe fn borrow(w: &'w World) -> Self::Item {
         w.res.borrow_mut().unwrap_or_else(|| {
             panic!(
                 "Tried to borrow resource of type {} for a system",
@@ -82,8 +103,13 @@ impl<'w, T: Resource> BorrowWorld<'w> for ResMut<'w, T> {
     }
 }
 
-impl<'w, T: Component> BorrowWorld<'w> for Comp<'w, T> {
-    unsafe fn borrow(w: &'w World) -> Self {
+impl<T: Resource> GatBorrowWorld for Comp<'_, T> {
+    type Borrow = GatHack<Self>;
+}
+
+impl<'w, T: Component> BorrowWorld<'w> for GatHack<Comp<'_, T>> {
+    type Item = Comp<'w, T>;
+    unsafe fn borrow(w: &'w World) -> Self::Item {
         w.comp.borrow().unwrap_or_else(|| {
             panic!(
                 "Tried to borrow component pool of type {} for a system",
@@ -96,8 +122,13 @@ impl<'w, T: Component> BorrowWorld<'w> for Comp<'w, T> {
     }
 }
 
-impl<'w, T: Component> BorrowWorld<'w> for CompMut<'w, T> {
-    unsafe fn borrow(w: &'w World) -> Self {
+impl<T: Resource> GatBorrowWorld for CompMut<'_, T> {
+    type Borrow = GatHack<Self>;
+}
+
+impl<'w, T: Component> BorrowWorld<'w> for GatHack<CompMut<'_, T>> {
+    type Item = CompMut<'w, T>;
+    unsafe fn borrow(w: &'w World) -> Self::Item {
         w.comp.borrow_mut().unwrap_or_else(|| {
             panic!(
                 "Tried to borrow component pool of type {} for a system",
@@ -111,10 +142,10 @@ impl<'w, T: Component> BorrowWorld<'w> for CompMut<'w, T> {
 }
 
 /// Procedure that borrows some set of data from the `World` to run
-pub unsafe trait System<'w, Params, Ret> {
+pub unsafe trait System<Params, Ret> {
     /// # Panics
     /// - Panics when breaking the aliasing rules
-    unsafe fn run(&mut self, w: &'w World) -> SystemResult;
+    unsafe fn run(&mut self, w: &World) -> SystemResult;
     /// Returns accesses to the [`World`]
     fn accesses(&self) -> AccessSet;
 }
@@ -176,25 +207,36 @@ impl AccessSet {
     }
 }
 
-// NOTE: `(T)` is `T` while `(T,)` is a tuple
 macro_rules! impl_run {
     ($($xs:ident),+ $(,)?) => {
-        unsafe impl<'w, $($xs),+, F> System<'w, ($($xs,)+), ()> for F
+        #[allow(warnings)]
+        unsafe impl<$($xs),+, F> System<($($xs,)+), ()> for F
         where
-            F: FnMut($($xs),+) -> (),
-            $($xs: BorrowWorld<'w>),+
+            $($xs: GatBorrowWorld,)+
+            // The GAT hack above only works for references of functions and
+            // requires such mysterious boundary:
+            for<'a> &'a mut F: FnMut($($xs),+) -> () +
+                FnMut($(BorrowItem<$xs>),+) -> (),
         {
-            unsafe fn run(&mut self, w: &'w World) -> SystemResult {
-                (self)(
-                    $($xs::borrow(w),)+
-                );
+            // To work with the `F` we need such an odd function:
+            unsafe fn run(&mut self, w: &World) -> SystemResult {
+                fn inner<$($xs),+>(
+                    mut f: impl FnMut($($xs),+) -> (),
+                    $($xs: $xs,)+
+                ) -> () {
+                    f($($xs,)+)
+                }
+
+                let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
+                inner(self, $($xs,)+);
+
                 Ok(())
             }
 
             fn accesses(&self) -> AccessSet {
                 let mut set = AccessSet::default();
                 [$(
-                    $xs::accesses(),
+                    Borrow::<$xs>::accesses(),
                 )+]
                     .iter()
                     .for_each(|a| set.merge_impl(a));
@@ -202,22 +244,34 @@ macro_rules! impl_run {
             }
         }
 
-        unsafe impl<'w, $($xs),+, F> System<'w, ($($xs,)+), SystemResult> for F
+        #[allow(warnings)]
+        unsafe impl<$($xs),+, F> System<($($xs,)+), SystemResult> for F
         where
-            F: FnMut($($xs),+) -> SystemResult,
-            $($xs: BorrowWorld<'w>),+
+            $($xs: GatBorrowWorld,)+
+            // The GAT hack above only works for references of functions and
+            // requires such mysterious boundary:
+            for<'a> &'a mut F: FnMut($($xs),+) -> SystemResult +
+                FnMut($(BorrowItem<$xs>),+) -> SystemResult,
         {
-            unsafe fn run(&mut self, w: &'w World) -> SystemResult {
-                (self)(
-                    $($xs::borrow(w),)+
-                )?;
+            // To work with the `F` we need such an odd function:
+            unsafe fn run(&mut self, w: &World) -> SystemResult {
+                fn inner<$($xs),+>(
+                    mut f: impl FnMut($($xs),+) -> SystemResult,
+                    $($xs: $xs,)+
+                ) -> SystemResult {
+                    f($($xs,)+)
+                }
+
+                let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
+                inner(self, $($xs,)+)?;
+
                 Ok(())
             }
 
             fn accesses(&self) -> AccessSet {
                 let mut set = AccessSet::default();
                 [$(
-                    $xs::accesses(),
+                    Borrow::<$xs>::accesses(),
                 )+]
                     .iter()
                     .for_each(|a| set.merge_impl(a));
