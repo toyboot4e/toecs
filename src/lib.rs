@@ -64,7 +64,7 @@ impl World {
         self.res.insert(res)
     }
 
-    /// Sets a of resources
+    /// Sets a set of of resources
     pub fn set_res_many<T: ResourceSet>(&mut self, set: T) {
         set.insert(self);
     }
@@ -74,7 +74,7 @@ impl World {
         self.res.remove()
     }
 
-    /// Takes out a resource
+    /// Takes out a set of resource
     pub fn take_res_many<T: ResourceSet>(&mut self) {
         T::take(self);
     }

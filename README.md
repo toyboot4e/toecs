@@ -7,7 +7,7 @@ Just for my learning; use other ECS libraries for real projects!
 I learned from..
 
 * [sparsey]. The clean code in short lines opened my mind to ECS.
-* [ECS back and forth][ebaf] series. They gave me explicit explanation of tricks behind [`sparsey`].
+* [ECS back and forth][ebaf] series. They gave me explicit explanation of tricks behind [sparsey].
 * [shipyard]. It shows solid code structure, but keeping the simplicity.
 * [bevy]. It is full of goodies for humans.
 
