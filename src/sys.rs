@@ -74,7 +74,7 @@ impl<'w, T: Resource> BorrowWorld<'w> for GatHack<Res<'_, T>> {
     unsafe fn borrow(w: &'w World) -> Self::Item {
         w.res.borrow().unwrap_or_else(|| {
             panic!(
-                "Tried to borrow resource of type {} for a system",
+                "Tried to borrow non-existing resource of type {} for a system",
                 any::type_name::<T>()
             )
         })
@@ -93,7 +93,7 @@ impl<'w, T: Resource> BorrowWorld<'w> for GatHack<ResMut<'_, T>> {
     unsafe fn borrow(w: &'w World) -> Self::Item {
         w.res.borrow_mut().unwrap_or_else(|| {
             panic!(
-                "Tried to borrow resource of type {} for a system",
+                "Tried to borrow non-existing resource of type {} for a system",
                 any::type_name::<T>()
             )
         })
