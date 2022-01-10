@@ -18,6 +18,22 @@ use crate::{
 /// Alias of [`anyhow::Result`]
 pub type SystemResult<T = ()> = anyhow::Result<T>;
 
+pub trait SystemReturn {
+    fn into_result(self) -> SystemResult;
+}
+
+impl SystemReturn for SystemResult {
+    fn into_result(self) -> SystemResult {
+        self
+    }
+}
+
+impl SystemReturn for () {
+    fn into_result(self) -> SystemResult {
+        Ok(())
+    }
+}
+
 /// Types that borrow some data from a `World`: `Res<T>`, `Comp<T>`, ..
 ///
 /// This type is basically [`BorrowWorld`], but actially a different type just to emulate GAT on
@@ -210,62 +226,26 @@ impl AccessSet {
 macro_rules! impl_run {
     ($($xs:ident),+ $(,)?) => {
         #[allow(warnings)]
-        unsafe impl<$($xs),+, F> System<($($xs,)+), ()> for F
+        unsafe impl<Ret, $($xs),+, F> System<($($xs,)+), ()> for F
         where
+            Ret: SystemReturn,
             $($xs: GatBorrowWorld,)+
             // The GAT hack above only works for references of functions and
             // requires such mysterious boundary:
-            for<'a> &'a mut F: FnMut($($xs),+) -> () +
-                FnMut($(BorrowItem<$xs>),+) -> (),
+            for<'a> &'a mut F: FnMut($($xs),+) -> Ret +
+                FnMut($(BorrowItem<$xs>),+) -> Ret
         {
             // To work with the `F` we need such an odd function:
             unsafe fn run(&mut self, w: &World) -> SystemResult {
-                fn inner<$($xs),+>(
-                    mut f: impl FnMut($($xs),+) -> (),
+                fn inner<Ret, $($xs),+>(
+                    mut f: impl FnMut($($xs),+) -> Ret,
                     $($xs: $xs,)+
-                ) -> () {
+                ) -> Ret {
                     f($($xs,)+)
                 }
 
                 let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
-                inner(self, $($xs,)+);
-
-                Ok(())
-            }
-
-            fn accesses(&self) -> AccessSet {
-                let mut set = AccessSet::default();
-                [$(
-                    Borrow::<$xs>::accesses(),
-                )+]
-                    .iter()
-                    .for_each(|a| set.merge_impl(a));
-                set
-            }
-        }
-
-        #[allow(warnings)]
-        unsafe impl<$($xs),+, F> System<($($xs,)+), SystemResult> for F
-        where
-            $($xs: GatBorrowWorld,)+
-            // The GAT hack above only works for references of functions and
-            // requires such mysterious boundary:
-            for<'a> &'a mut F: FnMut($($xs),+) -> SystemResult +
-                FnMut($(BorrowItem<$xs>),+) -> SystemResult,
-        {
-            // To work with the `F` we need such an odd function:
-            unsafe fn run(&mut self, w: &World) -> SystemResult {
-                fn inner<$($xs),+>(
-                    mut f: impl FnMut($($xs),+) -> SystemResult,
-                    $($xs: $xs,)+
-                ) -> SystemResult {
-                    f($($xs,)+)
-                }
-
-                let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
-                inner(self, $($xs,)+)?;
-
-                Ok(())
+                inner(self, $($xs,)+).into_result()
             }
 
             fn accesses(&self) -> AccessSet {
