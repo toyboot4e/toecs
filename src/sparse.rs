@@ -368,7 +368,7 @@ impl<T> SparseSet<T> {
     }
 }
 
-/// Maps [`SparseIndex`] to [`DenseIndex`], but without checking the generations
+/// Maps [`SparseIndex`] to [`DenseIndex`]
 #[derive(Debug, Clone)]
 struct SparseArray {
     data: Vec<Option<DenseIndex>>,
