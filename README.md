@@ -8,7 +8,7 @@ I learned from..
 
 * [sparsey]. The clean code in short lines opened my mind to ECS.
 * [ECS back and forth][ebaf] series. They gave me explicit explanation of tricks behind [sparsey].
-* [shipyard]. It shows solid code structure, but keeping the simplicity.
+* [shipyard]. It shows solid code structure, still keeping the simplicity.
 * [bevy]. It is full of goodies for humans.
 
 [sparsey]: https://github.com/LechintanTudor/sparsey

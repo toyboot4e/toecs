@@ -1,5 +1,5 @@
 use crate::{
-    comp::{Comp, CompMut, ComponentPoolMap},
+    comp::{Comp, CompMut, Component, ComponentPoolMap},
     ent::EntityPool,
     res::{Res, ResMut, ResourceMap},
     sys::System,
@@ -123,58 +123,66 @@ fn entity_pool() {
     assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e2_new]);
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct U(usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct I(isize);
+
+impl Component for U {}
+impl Component for I {}
+
 #[test]
 fn component_pool_map() {
     let mut world = World::default();
 
-    assert!(!world.comp.is_registered::<usize>());
-    assert!(!world.comp.register::<usize>());
-    assert!(world.comp.is_registered::<usize>());
-    assert!(!world.comp.register::<isize>());
+    assert!(!world.comp.is_registered::<U>());
+    assert!(!world.comp.register::<U>());
+    assert!(world.comp.is_registered::<U>());
+    assert!(!world.comp.register::<I>());
 
     let e0 = world.ents.alloc();
     let e1 = world.ents.alloc();
     let e2 = world.ents.alloc();
 
-    let mut us = world.comp.borrow_mut::<usize>().unwrap();
-    assert_eq!(us.insert(e0, 100), None);
-    assert_eq!(us.insert(e0, 0), Some(100));
-    assert_eq!(us.insert(e1, 1), None);
-    assert_eq!(us.insert(e2, 2), None);
+    let mut us = world.comp.borrow_mut::<U>().unwrap();
+    assert_eq!(us.insert(e0, U(100)), None);
+    assert_eq!(us.insert(e0, U(0)), Some(U(100)));
+    assert_eq!(us.insert(e1, U(1)), None);
+    assert_eq!(us.insert(e2, U(2)), None);
 
-    let mut is = world.comp.borrow_mut::<isize>().unwrap();
-    assert_eq!(is.insert(e0, -0), None);
-    assert_eq!(is.insert(e1, -1), None);
-    assert_eq!(is.insert(e2, -2), None);
+    let mut is = world.comp.borrow_mut::<I>().unwrap();
+    assert_eq!(is.insert(e0, I(-0)), None);
+    assert_eq!(is.insert(e1, I(-1)), None);
+    assert_eq!(is.insert(e2, I(-2)), None);
 
-    assert_eq!(is.swap_remove(e0), Some(-0));
-    assert_eq!(is.get(e1), Some(&-1));
-    assert_eq!(is.get(e2), Some(&-2));
+    assert_eq!(is.swap_remove(e0), Some(I(-0)));
+    assert_eq!(is.get(e1), Some(&I(-1)));
+    assert_eq!(is.get(e2), Some(&I(-2)));
 }
 
 #[test]
 fn component_safe() {
     let mut comp = ComponentPoolMap::default();
-    comp.register::<usize>();
-    let _u1 = comp.borrow::<usize>().unwrap();
-    let _u2 = comp.borrow::<usize>().unwrap();
+    comp.register::<U>();
+    let _u1 = comp.borrow::<U>().unwrap();
+    let _u2 = comp.borrow::<U>().unwrap();
 }
 
 #[test]
 #[should_panic]
 fn component_panic() {
     let mut comp = ComponentPoolMap::default();
-    comp.register::<usize>();
-    let _u1 = comp.borrow_mut::<usize>().unwrap();
-    let _u2 = comp.borrow::<usize>().unwrap();
+    comp.register::<U>();
+    let _u1 = comp.borrow_mut::<I>().unwrap();
+    let _u2 = comp.borrow::<I>().unwrap();
 }
 
 #[test]
 fn pointer_stability_after_display() {
     let mut world = World::default();
 
-    world.comp.register::<usize>();
-    world.comp.register::<isize>();
+    world.comp.register::<I>();
+    world.comp.register::<I>();
     let _e0 = world.ents.alloc();
     let _e1 = world.ents.alloc();
 
@@ -199,31 +207,43 @@ fn component_set() {
 
     use crate::ComponentSet;
 
-    type A = (usize, isize);
+    type A = (U, I);
     world.register_many::<A>();
 
     let e0 = world.spawn_empty();
-    (10usize, -10isize).insert(e0, &mut world);
+    (U(10), I(-10)).insert(e0, &mut world);
 
-    assert_eq!(world.comp::<usize>().get(e0), Some(&10));
-    assert_eq!(world.comp::<isize>().get(e0), Some(&-10));
+    assert_eq!(world.comp::<U>().get(e0), Some(&U(10)));
+    assert_eq!(world.comp::<I>().get(e0), Some(&I(-10)));
 
     A::remove(e0, &mut world);
 
-    assert_eq!(world.comp::<usize>().get(e0), None);
-    assert_eq!(world.comp::<isize>().get(e0), None);
+    assert_eq!(world.comp::<U>().get(e0), None);
+    assert_eq!(world.comp::<I>().get(e0), None);
 }
+
+#[derive(Debug)]
+struct A;
+#[derive(Debug)]
+struct B;
+#[derive(Debug)]
+struct C;
+#[derive(Debug)]
+struct D;
+#[derive(Debug)]
+struct E;
+#[derive(Debug)]
+struct F;
+
+impl Component for A {}
+impl Component for B {}
+impl Component for C {}
+impl Component for D {}
+impl Component for E {}
+impl Component for F {}
 
 #[test]
 fn confliction() {
-    // If you forget `Debug`, `System` is not implemented
-    #[derive(Debug)]
-    struct A;
-    #[derive(Debug)]
-    struct B;
-    #[derive(Debug)]
-    struct C;
-
     fn self_conflict(_a1: Res<A>, _a2: ResMut<A>) {}
     fn free(_a1: Res<A>, _a2: Res<A>) {}
 
@@ -255,19 +275,6 @@ fn confliction() {
 fn layout_non_intersect() {
     use crate::comp::Layout;
 
-    #[derive(Debug)]
-    struct A;
-    #[derive(Debug)]
-    struct B;
-    #[derive(Debug)]
-    struct C;
-    #[derive(Debug)]
-    struct D;
-    #[derive(Debug)]
-    struct E;
-    #[derive(Debug)]
-    struct F;
-
     let map = Layout::builder()
         .group::<(A, B)>()
         .group::<(A, B, C)>()
@@ -287,15 +294,6 @@ fn layout_non_intersect() {
 #[should_panic]
 fn layout_intersect() {
     use crate::comp::Layout;
-
-    #[derive(Debug)]
-    struct A;
-    #[derive(Debug)]
-    struct B;
-    #[derive(Debug)]
-    struct C;
-    #[derive(Debug)]
-    struct D;
 
     Layout::builder()
         .group::<(A, B)>()

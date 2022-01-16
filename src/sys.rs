@@ -119,7 +119,7 @@ impl<'w, T: Resource> BorrowWorld<'w> for GatHack<ResMut<'_, T>> {
     }
 }
 
-impl<T: Resource> GatBorrowWorld for Comp<'_, T> {
+impl<T: Component> GatBorrowWorld for Comp<'_, T> {
     type Borrow = GatHack<Self>;
 }
 
@@ -138,7 +138,7 @@ impl<'w, T: Component> BorrowWorld<'w> for GatHack<Comp<'_, T>> {
     }
 }
 
-impl<T: Resource> GatBorrowWorld for CompMut<'_, T> {
+impl<T: Component> GatBorrowWorld for CompMut<'_, T> {
     type Borrow = GatHack<Self>;
 }
 

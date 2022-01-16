@@ -26,8 +26,6 @@ pub trait Component: 'static + fmt::Debug + Downcast {}
 
 impl_downcast!(Component);
 
-impl<T: 'static + fmt::Debug + Downcast> Component for T {}
-
 /// SoA storage of components backed by sparse sets
 #[derive(Debug, Default)]
 pub struct ComponentPoolMap {
@@ -274,11 +272,11 @@ impl<T> AsMut<[T]> for ComponentPool<T> {
 
 /// Immutable access to a component pool of type `T`
 #[derive(Debug)]
-pub struct Comp<'r, T: 'static> {
+pub struct Comp<'r, T: Component> {
     borrow: AtomicRef<'r, ComponentPool<T>>,
 }
 
-impl<'r, T> ops::Deref for Comp<'r, T> {
+impl<'r, T: Component> ops::Deref for Comp<'r, T> {
     type Target = ComponentPool<T>;
     fn deref(&self) -> &Self::Target {
         self.borrow.deref()
@@ -287,18 +285,18 @@ impl<'r, T> ops::Deref for Comp<'r, T> {
 
 /// Mutable access to a component pool of type `T`
 #[derive(Debug)]
-pub struct CompMut<'r, T: 'static> {
+pub struct CompMut<'r, T: Component> {
     borrow: AtomicRefMut<'r, ComponentPool<T>>,
 }
 
-impl<'r, T> ops::Deref for CompMut<'r, T> {
+impl<'r, T: Component> ops::Deref for CompMut<'r, T> {
     type Target = ComponentPool<T>;
     fn deref(&self) -> &Self::Target {
         self.borrow.deref()
     }
 }
 
-impl<'r, T> ops::DerefMut for CompMut<'r, T> {
+impl<'r, T: Component> ops::DerefMut for CompMut<'r, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()
     }
