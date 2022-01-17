@@ -280,6 +280,7 @@ pub struct Comp<'r, T: Component> {
 
 impl<'r, T: Component> ops::Deref for Comp<'r, T> {
     type Target = ComponentPool<T>;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.borrow.deref()
     }
@@ -293,12 +294,14 @@ pub struct CompMut<'r, T: Component> {
 
 impl<'r, T: Component> ops::Deref for CompMut<'r, T> {
     type Target = ComponentPool<T>;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.borrow.deref()
     }
 }
 
 impl<'r, T: Component> ops::DerefMut for CompMut<'r, T> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()
     }

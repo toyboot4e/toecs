@@ -124,6 +124,7 @@ pub struct Res<'r, T> {
 
 impl<'r, T> ops::Deref for Res<'r, T> {
     type Target = T;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.borrow.deref()
     }
@@ -137,12 +138,14 @@ pub struct ResMut<'r, T> {
 
 impl<'r, T> ops::Deref for ResMut<'r, T> {
     type Target = T;
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.borrow.deref()
     }
 }
 
 impl<'r, T> ops::DerefMut for ResMut<'r, T> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()
     }
