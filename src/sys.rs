@@ -223,7 +223,7 @@ impl AccessSet {
     }
 }
 
-macro_rules! impl_run {
+macro_rules! impl_system {
     ($($xs:ident),+ $(,)?) => {
         #[allow(warnings)]
         unsafe impl<Ret, $($xs),+, F> System<($($xs,)+), ()> for F
@@ -261,14 +261,42 @@ macro_rules! impl_run {
     };
 }
 
+/// `macro!(C2, C1, C0)` → `macro!(C0, C1, C2)`
+macro_rules! reversed1 {
+    ($macro:tt, [] $($reversed:tt,)+) => {
+        $macro!($($reversed),+);
+    };
+    ($macro:tt, [$first_0:tt, $($rest_0:tt,)*] $($reversed:tt,)*) => {
+        reversed1!($macro, [$($rest_0,)*] $first_0, $($reversed,)*);
+    };
+}
+
 macro_rules! recursive {
-    ($macro:ident, $first:ident) => {
+    ($macro:tt, $first:tt) => {
         $macro!($first);
     };
-    ($macro:ident, $first:ident, $($rest:ident),* $(,)?) => {
-        $macro!($first, $($rest),*);
+    ($macro:tt, $first:tt, $($rest:tt),* $(,)?) => {
+        reversed1!($macro, [$first, $($rest,)*]);
         recursive!($macro, $($rest),*);
     };
 }
 
-recursive!(impl_run, P15, P14, P13, P12, P11, P10, P9, P8, P7, P6, P5, P4, P3, P2, P1, P0,);
+recursive!(
+    impl_system,
+    P15,
+    P14,
+    P13,
+    P12,
+    P11,
+    P10,
+    P9,
+    P8,
+    P7,
+    P6,
+    P5,
+    P4,
+    P3,
+    P2,
+    P1,
+    P0,
+);
