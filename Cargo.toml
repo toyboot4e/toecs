@@ -11,6 +11,7 @@ members = [
 [dependencies]
 toecs_derive = { path = "./toecs_derive", version = "0.1.0" }
 
+anyhow = "1.0.52"
 atomic_refcell = "0.1.8"
 downcast-rs = "1.2.0"
 rustc-hash = "1.1.0"

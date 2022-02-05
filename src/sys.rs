@@ -2,6 +2,8 @@
 Systems: procedures that operate on the [`World`]
 */
 
+pub mod erased;
+
 use std::{
     any::{self, TypeId},
     fmt,
