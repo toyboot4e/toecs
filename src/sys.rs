@@ -1,7 +1,5 @@
 /*!
 Systems: procedures that operate on the [`World`]
-
-System can return either `()` or [`SystemResult`]
 */
 
 use std::{
@@ -14,25 +12,6 @@ use crate::{
     res::{Res, ResMut, Resource},
     World,
 };
-
-/// Alias of [`anyhow::Result`]
-pub type SystemResult<T = ()> = anyhow::Result<T>;
-
-pub trait SystemReturn {
-    fn into_result(self) -> SystemResult;
-}
-
-impl SystemReturn for SystemResult {
-    fn into_result(self) -> SystemResult {
-        self
-    }
-}
-
-impl SystemReturn for () {
-    fn into_result(self) -> SystemResult {
-        Ok(())
-    }
-}
 
 /// Types that borrow some data from a `World`: `Res<T>`, `Comp<T>`, ..
 ///
@@ -161,7 +140,7 @@ impl<'w, T: Component> BorrowWorld<'w> for GatHack<CompMut<'_, T>> {
 pub unsafe trait System<Params, Ret> {
     /// # Panics
     /// - Panics when breaking the aliasing rules
-    unsafe fn run(&mut self, w: &World) -> SystemResult;
+    unsafe fn run(&mut self, w: &World) -> Ret;
     /// Returns accesses to the [`World`]
     fn accesses(&self) -> AccessSet;
 }
@@ -226,9 +205,8 @@ impl AccessSet {
 macro_rules! impl_system {
     ($($xs:ident),+ $(,)?) => {
         #[allow(warnings)]
-        unsafe impl<Ret, $($xs),+, F> System<($($xs,)+), ()> for F
+        unsafe impl<Ret, $($xs),+, F> System<($($xs,)+), Ret> for F
         where
-            Ret: SystemReturn,
             $($xs: GatBorrowWorld,)+
             // The GAT hack above only works for references of functions and
             // requires such mysterious boundary:
@@ -236,7 +214,7 @@ macro_rules! impl_system {
                 FnMut($(BorrowItem<$xs>),+) -> Ret
         {
             // To work with the `F` we need such an odd function:
-            unsafe fn run(&mut self, w: &World) -> SystemResult {
+            unsafe fn run(&mut self, w: &World) -> Ret {
                 fn inner<Ret, $($xs),+>(
                     mut f: impl FnMut($($xs),+) -> Ret,
                     $($xs: $xs,)+
@@ -245,7 +223,7 @@ macro_rules! impl_system {
                 }
 
                 let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
-                inner(self, $($xs,)+).into_result()
+                inner(self, $($xs,)+)
             }
 
             fn accesses(&self) -> AccessSet {

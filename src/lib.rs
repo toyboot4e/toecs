@@ -15,14 +15,11 @@ pub mod sparse;
 pub mod sys;
 
 pub mod prelude {
-    pub use anyhow::{anyhow, bail, ensure, Context, Error};
-
     pub use crate::{
         comp::{Comp, CompMut, Component},
         ent::Entity,
         query::Iter,
         res::{Res, ResMut},
-        sys::SystemResult,
         World,
     };
 }
@@ -37,7 +34,7 @@ use crate::{
     comp::{Comp, CompMut, Component, ComponentPoolMap, LayoutBuilder},
     ent::{Entity, EntityPool},
     res::{Res, ResMut, Resource, ResourceMap},
-    sys::{System, SystemResult},
+    sys::System,
 };
 
 /// In-memory central DB
@@ -226,7 +223,7 @@ impl World {
 
     /// # Panics
     /// Panics if the system borrows unregistered data or if the system has self confliction.
-    pub fn run<Params, Ret, S: System<Params, Ret>>(&mut self, mut sys: S) -> SystemResult {
+    pub fn run<Params, Ret, S: System<Params, Ret>>(&mut self, mut sys: S) -> Ret {
         debug_assert!(
             !sys.accesses().self_conflict(),
             "The system has self confliction!"
