@@ -20,6 +20,7 @@ pub mod prelude {
         ent::Entity,
         query::Iter,
         res::{Res, ResMut},
+        sys::erased::SystemResult,
         World,
     };
 }
@@ -426,3 +427,16 @@ recursive_indexed!(
         (0, R0),
     ]
 );
+
+#[macro_export]
+macro_rules! run_seq_ex {
+	($world:expr, $($sys:expr),+ $(,)?) => {{
+        unsafe {
+            use $crate::sys::erased::ExclusiveResultSystem;
+            $(
+                $sys.run_as_result_ex($world)?;
+            )+
+        }
+        Ok(())
+	}};
+}

@@ -3,7 +3,7 @@
 use std::fmt;
 
 use crate::{
-    sys::{AccessSet, System},
+    sys::{AccessSet, GatBorrowWorld, System},
     World,
 };
 
@@ -38,5 +38,30 @@ where
 {
     unsafe fn run_as_result(&mut self, w: &World) -> SystemResult {
         self.run(w).into_result()
+    }
+}
+
+/// [`System`] with return types limited to [`IntoSystemResult`]
+pub trait ExclusiveResultSystem<Params, Ret> {
+    unsafe fn run_as_result_ex(&mut self, w: &mut World) -> SystemResult;
+}
+
+impl<F, Ret> ExclusiveResultSystem<World, Ret> for F
+where
+    F: FnMut(&mut World) -> Ret,
+    Ret: IntoSystemResult,
+{
+    unsafe fn run_as_result_ex(&mut self, w: &mut World) -> SystemResult {
+        self(w).into_result()
+    }
+}
+
+impl<S, Params, Ret> ExclusiveResultSystem<Params, Ret> for S
+where
+    S: ResultSystem<Params, Ret>,
+    Params: GatBorrowWorld,
+{
+    unsafe fn run_as_result_ex(&mut self, w: &mut World) -> SystemResult {
+        self.run_as_result(w)
     }
 }
