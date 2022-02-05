@@ -197,6 +197,14 @@ impl AccessSet {
         }
     }
 
+    pub fn concat<'a>(sets: impl Iterator<Item = &'a AccessSet>) -> Self {
+        let mut state = Self::default();
+        for set in sets {
+            state = state.merge(set).expect("unable to concat!");
+        }
+        state
+    }
+
     fn merge_impl(&mut self, other: &Self) {
         self.0.extend(&other.0);
     }
@@ -261,6 +269,54 @@ macro_rules! recursive {
 
 recursive!(
     impl_system,
+    P15,
+    P14,
+    P13,
+    P12,
+    P11,
+    P10,
+    P9,
+    P8,
+    P7,
+    P6,
+    P5,
+    P4,
+    P3,
+    P2,
+    P1,
+    P0,
+);
+
+macro_rules! impl_borrow_tuple {
+    ($($xs:ident),+ $(,)?) => {
+        impl<$($xs,)+> GatBorrowWorld for ($($xs,)+)
+        where
+            $($xs: GatBorrowWorld,)+
+        {
+            type Borrow = ($($xs::Borrow,)+);
+        }
+
+        impl<'w, $($xs,)+> BorrowWorld<'w> for ($($xs,)+)
+        where
+            $($xs: BorrowWorld<'w>,)+
+        {
+            type Item = ($($xs::Item,)+);
+
+            unsafe fn borrow(w: &'w World) -> Self::Item {
+                ($($xs::borrow(w),)+)
+            }
+
+            fn accesses() -> AccessSet {
+                AccessSet::concat([
+                    $($xs::accesses(),)+
+                ].iter())
+            }
+        }
+    };
+}
+
+recursive!(
+    impl_borrow_tuple,
     P15,
     P14,
     P13,

@@ -3,7 +3,7 @@
 use toecs::{
     comp::{Comp, CompMut, Component},
     query::Iter,
-    res::Res,
+    res::{Res, ResMut},
     sys::System,
     World,
 };
@@ -190,4 +190,24 @@ fn sparse_iter_holes() {
         (&i, &f).iter().entities().collect::<Vec<_>>(),
         [(uif, (i.get(uif).unwrap(), f.get(uif).unwrap())),],
     );
+}
+
+#[test]
+fn borrow_type_inference() {
+    let mut world = World::default();
+
+    world.set_res_many((U(0), I(0)));
+    world.register_many::<(U, I)>();
+
+    {
+        let _: Res<U> = world.borrow();
+        let _: ResMut<I> = world.borrow();
+    }
+
+    {
+        let _: Comp<U> = world.borrow();
+        let _: CompMut<I> = world.borrow();
+    }
+
+    let (_, _, _, _): (Res<U>, Res<I>, Comp<U>, CompMut<I>) = world.borrow();
 }
