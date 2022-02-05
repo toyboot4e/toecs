@@ -123,13 +123,10 @@ fn entity_pool() {
     assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e2_new]);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U(usize);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct I(isize);
-
-impl Component for U {}
-impl Component for I {}
 
 #[test]
 fn component_pool_map() {
@@ -222,25 +219,18 @@ fn component_set() {
     assert_eq!(world.comp::<I>().get(e0), None);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Component)]
 struct A;
-#[derive(Debug)]
+#[derive(Debug, Component)]
 struct B;
-#[derive(Debug)]
+#[derive(Debug, Component)]
 struct C;
-#[derive(Debug)]
+#[derive(Debug, Component)]
 struct D;
-#[derive(Debug)]
+#[derive(Debug, Component)]
 struct E;
-#[derive(Debug)]
+#[derive(Debug, Component)]
 struct F;
-
-impl Component for A {}
-impl Component for B {}
-impl Component for C {}
-impl Component for D {}
-impl Component for E {}
-impl Component for F {}
 
 #[test]
 fn confliction() {

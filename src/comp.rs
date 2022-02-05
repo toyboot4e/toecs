@@ -4,6 +4,8 @@ Components: data that forms an entity
 Each type of components are stored in a pool backed by a [`SparseSet`].
 */
 
+pub use toecs_derive::Component;
+
 use std::{
     any::{self, TypeId},
     cell::RefCell,

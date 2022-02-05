@@ -8,19 +8,14 @@ use toecs::{
     World,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U(usize);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U32(u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct I(isize);
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, PartialOrd)]
 struct F(f32);
-
-impl Component for U {}
-impl Component for U32 {}
-impl Component for I {}
-impl Component for F {}
 
 #[test]
 fn world_api() {

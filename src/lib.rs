@@ -18,7 +18,7 @@ pub mod prelude {
     pub use anyhow::{anyhow, bail, ensure, Context, Error};
 
     pub use crate::{
-        comp::{Comp, CompMut},
+        comp::{Comp, CompMut, Component},
         ent::Entity,
         query::Iter,
         res::{Res, ResMut},
