@@ -334,3 +334,31 @@ recursive!(
     P1,
     P0,
 );
+
+/// Upcast of [`System`] s and function that takes `&mut World`
+pub unsafe trait ExclusiveSystem<Params, Ret> {
+    unsafe fn run_ex(&mut self, w: &mut World) -> Ret;
+}
+
+/// Every `FnMut(&mut World)` is an [`ExclusiveSystem`]
+unsafe impl<F, Ret> ExclusiveSystem<World, Ret> for F
+where
+    F: FnMut(&mut World) -> Ret,
+{
+    unsafe fn run_ex(&mut self, w: &mut World) -> Ret {
+        self(w)
+    }
+}
+
+/// Every [`System`] cam be run as an [`ExclusiveSystem`]
+unsafe impl<S, Params, Ret> ExclusiveSystem<Params, Ret> for S
+where
+    S: System<Params, Ret>,
+    Params: GatBorrowWorld,
+{
+    unsafe fn run_ex(&mut self, w: &mut World) -> Ret {
+        self.run(w)
+    }
+}
+
+// NOTE: `ExclusiveSystem` impl confliction is avoded carefully!

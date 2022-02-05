@@ -211,3 +211,15 @@ fn borrow_type_inference() {
 
     let (_, _, _, _): (Res<U>, Res<I>, Comp<U>, CompMut<I>) = world.borrow();
 }
+
+#[test]
+fn run_exclusive() {
+    let mut world = World::default();
+    world.set_res_many((U(0), I(0), F(0.0)));
+
+    fn sys(_u: Res<U>, _i: Res<I>, _f: Res<F>) {}
+    fn ex_sys(_world: &mut World) {}
+
+    world.run_ex(sys);
+    world.run_ex(ex_sys);
+}

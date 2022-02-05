@@ -231,6 +231,14 @@ impl World {
         unsafe { sys.run(self) }
     }
 
+    /// Runs a procedure with exclusive access to the [`World`]
+    // TODO: allow ordinary system
+    pub fn run_ex<S, Params, Ret>(&mut self, mut sys: S) -> Ret
+    where
+        S: sys::ExclusiveSystem<Params, Ret>,
+    {
+        unsafe { sys.run_ex(self) }
+    }
     /// Returns a debug display. This is safe because it has exclusive access.
     pub fn display(&mut self) -> WorldDisplay {
         let mut world = World::default();
