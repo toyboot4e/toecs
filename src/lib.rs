@@ -195,6 +195,15 @@ impl World {
         )
     }
 
+    /// Borrows custom type or pre-defined type. Prefer explicit alternative such as
+    /// [`res`](Self::res) when doable.
+    pub fn borrow<'w, T: sys::GatBorrowWorld>(&'w self) -> T
+    where
+        T::Borrow: sys::BorrowWorld<'w, Item = T>,
+    {
+        unsafe { <<T as sys::GatBorrowWorld>::Borrow as sys::BorrowWorld>::borrow(self) }
+    }
+
     /// Inserts a component to an entity. Returns some old component if it is present.
     pub fn insert<T: Component>(&mut self, ent: Entity, comp: T) -> Option<T> {
         self.comp_mut::<T>().insert(ent, comp)
