@@ -20,7 +20,7 @@ pub mod prelude {
         ent::Entity,
         query::Iter,
         res::{Res, ResMut},
-        sys::erased::SystemResult,
+        sys::{erased::SystemResult, AccessSet, BorrowWorld, GatBorrowWorld},
         World,
     };
 }
