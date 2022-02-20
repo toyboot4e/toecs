@@ -4,6 +4,8 @@ Systems: procedures that operate on the [`World`]
 
 pub mod erased;
 
+pub use toecs_derive::GatBorrowWorld;
+
 use std::{
     any::{self, TypeId},
     fmt,

@@ -1,0 +1,53 @@
+use proc_macro2::TokenStream as TokenStream2;
+use quote::*;
+use syn::*;
+
+pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
+    let ty_ident = &ast.ident;
+
+    let data = match &ast.data {
+        Data::Struct(x) => x,
+        _ => panic!("#[derive(BorrowWorld)] is only for structs"),
+    };
+
+    let fields = match &data.fields {
+        Fields::Named(xs) => xs,
+        _ => panic!("#[derive(BorrowWorld): only supports named fields"),
+    };
+
+    let field_tys = fields.named.iter().map(|f| &f.ty).collect::<Vec<_>>();
+    let field_idents = fields.named.iter().map(|f| &f.ident);
+
+    let gat_hack = format_ident!("GatHack{}", ty_ident);
+
+    // NOTE: We only accept `Type<'w>` types as inputs
+    // NOTE: This is a duplicate impl of `ComponentSet`, but it's OK for simplicity
+    quote! {
+        #[doc(hidden)]
+        pub struct #gat_hack<T>(::core::marker::PhantomData<T>);
+
+        impl<'w> GatBorrowWorld for #ty_ident<'w> {
+            type Borrow = #gat_hack<Self>;
+        }
+
+        impl<'w> BorrowWorld<'w> for #gat_hack<#ty_ident<'_>> {
+            type Item = #ty_ident<'w>;
+
+            unsafe fn borrow(w: &'w World) -> Self::Item {
+                #ty_ident {
+                    #(
+                        #field_idents: <<#field_tys as GatBorrowWorld>::Borrow as BorrowWorld<'w>>::borrow(w),
+                    )*
+                }
+            }
+
+            fn accesses() -> AccessSet {
+                AccessSet::concat([
+                    #(
+                        <<#field_tys as GatBorrowWorld>::Borrow as BorrowWorld<'w>>::accesses(),
+                    )*
+                ].iter())
+            }
+        }
+    }
+}
