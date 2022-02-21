@@ -246,6 +246,10 @@ impl<T> SparseSet<T> {
         dense.gen == sparse.gen
     }
 
+    pub fn dense_index(&self, sparse: SparseIndex) -> Option<DenseIndex> {
+        self.to_dense.get(sparse)
+    }
+
     pub fn get(&self, sparse: SparseIndex) -> Option<&T> {
         let dense = self.to_dense.get(sparse)?;
         if dense.gen == sparse.gen {
