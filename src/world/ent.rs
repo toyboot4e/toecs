@@ -4,7 +4,7 @@ Entity: ID associated with a set of components
 
 use std::{fmt, slice};
 
-use crate::sparse::*;
+use crate::world::{comp, sparse::*};
 
 /// Identifier that represents an object made of components
 ///
@@ -14,7 +14,7 @@ use crate::sparse::*;
 ///
 /// ```
 /// # use std::mem::size_of;
-/// # use toecs::ent::Entity;
+/// # use toecs::world::ent::Entity;
 /// assert_eq!(size_of::<Entity>(), size_of::<Option<Entity>>());
 ///
 /// struct Test { a: u32, e: Entity, x: u32 }
@@ -45,10 +45,7 @@ impl Entity {
     }
 
     /// FIXME: Abstract `&Comp<T>` and `&CompMut<T>` (with `AsRef<T>`?)
-    pub fn get<'a, T: crate::comp::Component>(
-        &self,
-        comp: &'a crate::comp::Comp<T>,
-    ) -> Option<&'a T> {
+    pub fn get<'a, T: comp::Component>(&self, comp: &'a comp::Comp<T>) -> Option<&'a T> {
         comp.get(*self)
     }
 }

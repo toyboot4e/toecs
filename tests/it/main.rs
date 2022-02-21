@@ -1,11 +1,13 @@
 //! The only integration test "crate"
 
 use toecs::{
-    comp::{Comp, CompMut, Component},
     query::Iter,
-    res::{Res, ResMut, Resource},
     sys::System,
-    World,
+    world::{
+        comp::{Comp, CompMut, Component},
+        res::{Res, ResMut, Resource},
+        World,
+    },
 };
 
 #[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,9 +1,11 @@
 use crate::{
-    comp::{Comp, CompMut, Component, ComponentPoolMap},
-    ent::EntityPool,
-    res::{Res, ResMut, Resource, ResourceMap},
     sys::System,
-    World,
+    world::{
+        comp::{Comp, CompMut, Component, ComponentPoolMap},
+        ent::EntityPool,
+        res::{Res, ResMut, Resource, ResourceMap},
+        ComponentSet, World,
+    },
 };
 
 #[derive(Resource, Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,7 +70,7 @@ fn resource_system() {
 
 #[test]
 fn sparse_set() {
-    use crate::sparse::*;
+    use crate::world::sparse::*;
 
     let mut set = SparseSet::<usize>::default();
 
@@ -203,8 +205,6 @@ fn pointer_stability_after_display() {
 fn component_set() {
     let mut world = World::default();
 
-    use crate::ComponentSet;
-
     type A = (U, I);
     world.register_many::<A>();
 
@@ -261,42 +261,3 @@ fn confliction() {
         assert!(iii.accesses().conflicts(&im_.accesses()));
     }
 }
-
-#[test]
-fn layout_non_intersect() {
-    use crate::comp::Layout;
-
-    let map = Layout::builder()
-        .group::<(A, B)>()
-        .group::<(A, B, C)>()
-        .group::<(A, B, C, D)>()
-        .group::<(E, F)>()
-        .build();
-
-    assert_eq!(map.layout().families().len(), 2);
-
-    assert!(map.is_registered::<A>());
-    assert!(map.is_registered::<B>());
-    assert!(map.is_registered::<C>());
-    assert!(map.is_registered::<D>());
-}
-
-#[test]
-#[should_panic]
-fn layout_intersect() {
-    use crate::comp::Layout;
-
-    Layout::builder()
-        .group::<(A, B)>()
-        .group::<(A, B, C)>()
-        .group::<(A, B, D)>()
-        .build();
-}
-
-// #[test]
-// fn into_box_system() {
-//     fn s(a: Comp<A>, b: CompMut<B>) {}
-
-//     use crate::schedule::IntoBoxSystem;
-//     let result = s.into_box_system();
-// }

@@ -1,10 +1,8 @@
 //! Type-erased systems
 
-use std::fmt;
-
 use crate::{
-    sys::{AccessSet, GatBorrowWorld, System},
-    World,
+    sys::{GatBorrowWorld, System},
+    world::World,
 };
 
 pub type SystemResult<T = ()> = anyhow::Result<T>;

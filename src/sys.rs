@@ -11,7 +11,7 @@ use std::{
     fmt,
 };
 
-use crate::{
+use crate::world::{
     comp::{Comp, CompMut, Component},
     res::{Res, ResMut, Resource},
     World,

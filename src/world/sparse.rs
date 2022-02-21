@@ -47,7 +47,7 @@ newtype_index! {
 ///
 /// ```
 /// # use std::mem::size_of;
-/// # use toecs::sparse::Generation;
+/// # use toecs::world::sparse::Generation;
 /// assert_eq!(size_of::<Generation>(), size_of::<Option<Generation>>());
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
