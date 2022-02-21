@@ -48,6 +48,10 @@ impl fmt::Display for MergeError {
 }
 
 impl AccessSet {
+    pub fn new(set: Vec<Access>) -> Self {
+        Self(set)
+    }
+
     /// Checks if the two set of accesses can be got at the same time
     pub fn conflicts(&self, other: &Self) -> bool {
         self.0
