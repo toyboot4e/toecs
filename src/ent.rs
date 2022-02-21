@@ -43,6 +43,14 @@ impl Entity {
     pub fn generation(&self) -> Generation {
         self.0.generation()
     }
+
+    /// FIXME: Abstract `&Comp<T>` and `&CompMut<T>` (with `AsRef<T>`?)
+    pub fn get<'a, T: crate::comp::Component>(
+        &self,
+        comp: &'a crate::comp::Comp<T>,
+    ) -> Option<&'a T> {
+        comp.get(*self)
+    }
 }
 
 /// Pool of entities
