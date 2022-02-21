@@ -2,6 +2,8 @@
 Resources: virtually `World` fields backed by an anymap
 */
 
+pub use toecs_derive::Resource;
+
 use std::{
     any::{self, TypeId},
     cell::RefCell,
@@ -16,8 +18,6 @@ use rustc_hash::FxHashMap;
 pub trait Resource: 'static + fmt::Debug + Downcast {}
 
 impl_downcast!(Resource);
-
-impl<T: 'static + fmt::Debug + Downcast> Resource for T {}
 
 /// Dynamic fields of a `World` backed by an anymap
 #[derive(Debug, Default)]
@@ -118,11 +118,11 @@ impl<'r> fmt::Debug for ResourceMapDisplay<'r> {
 
 /// Immutable access to a resource of type `T`
 #[derive(Debug)]
-pub struct Res<'r, T> {
+pub struct Res<'r, T: Resource> {
     borrow: AtomicRef<'r, T>,
 }
 
-impl<'r, T> ops::Deref for Res<'r, T> {
+impl<'r, T: Resource> ops::Deref for Res<'r, T> {
     type Target = T;
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -132,11 +132,11 @@ impl<'r, T> ops::Deref for Res<'r, T> {
 
 /// Mutable access to a resource of type `T`
 #[derive(Debug)]
-pub struct ResMut<'r, T> {
+pub struct ResMut<'r, T: Resource> {
     borrow: AtomicRefMut<'r, T>,
 }
 
-impl<'r, T> ops::Deref for ResMut<'r, T> {
+impl<'r, T: Resource> ops::Deref for ResMut<'r, T> {
     type Target = T;
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -144,7 +144,7 @@ impl<'r, T> ops::Deref for ResMut<'r, T> {
     }
 }
 
-impl<'r, T> ops::DerefMut for ResMut<'r, T> {
+impl<'r, T: Resource> ops::DerefMut for ResMut<'r, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()

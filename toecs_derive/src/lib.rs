@@ -1,5 +1,6 @@
 mod borrow;
 mod component;
+mod resource;
 
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
@@ -11,6 +12,15 @@ use syn::{parse_macro_input, DeriveInput};
 pub fn component(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     TokenStream::from(component::impl_component(ast))
+}
+
+/// Implements `Resource` trait
+///
+/// User has to import `Resource` to use this macro
+#[proc_macro_derive(Resource, attributes(resource))]
+pub fn resource(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(resource::impl_resource(ast))
 }
 
 /// Implements `GatBorrowWorld` trait, the lifetime-free alternative to `BorrowWorld`

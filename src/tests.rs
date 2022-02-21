@@ -1,63 +1,69 @@
 use crate::{
     comp::{Comp, CompMut, Component, ComponentPoolMap},
     ent::EntityPool,
-    res::{Res, ResMut, ResourceMap},
+    res::{Res, ResMut, Resource, ResourceMap},
     sys::System,
     World,
 };
 
+#[derive(Resource, Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct U(usize);
+
+#[derive(Resource, Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct I(isize);
+
 #[test]
 fn resource_map() {
     let mut res = ResourceMap::default();
-    res.insert(30usize);
-    res.insert(-30isize);
+    res.insert(U(30));
+    res.insert(I(-30));
 
     // mutably borrow two resources
     {
-        let mut u = res.borrow_mut::<usize>().unwrap();
-        let mut i = res.borrow_mut::<isize>().unwrap();
-        *u += 5;
-        *i += 5;
-        assert_eq!(*u, 30 + 5);
-        assert_eq!(*i, -30 + 5);
+        let mut u = res.borrow_mut::<U>().unwrap();
+        let mut i = res.borrow_mut::<I>().unwrap();
+        u.0 += 5;
+        i.0 += 5;
+        assert_eq!(u.0, 30 + 5);
+        assert_eq!(i.0, -30 + 5);
     }
 
     // insert, remove
-    assert_eq!(res.insert(2usize), Some(30 + 5));
-    assert_eq!(res.remove::<usize>(), Some(2usize));
+    assert_eq!(res.insert(U(2)), Some(U(30 + 5)));
+    assert_eq!(res.remove::<U>(), Some(U(2)));
 }
 
 #[test]
 #[should_panic]
 fn resource_panic() {
     let mut res = ResourceMap::default();
-    res.insert(0usize);
-    let _u1 = res.borrow_mut::<usize>().unwrap();
-    let _u2 = res.borrow::<usize>().unwrap();
+    res.insert(U(0));
+    let _u1 = res.borrow_mut::<U>().unwrap();
+    let _u2 = res.borrow::<U>().unwrap();
 }
 
 #[test]
 fn resource_safe() {
     let mut res = ResourceMap::default();
-    res.insert(0usize);
-    let _u1 = res.borrow::<usize>().unwrap();
-    let _u2 = res.borrow::<usize>().unwrap();
+    res.insert(U(0));
+    let _u1 = res.borrow::<U>().unwrap();
+    let _u2 = res.borrow::<U>().unwrap();
 }
 
 #[test]
 fn resource_system() {
-    fn system(x: Res<usize>, mut y: ResMut<isize>) {
-        *y = *x as isize + *y;
+    fn system(x: Res<U>, mut y: ResMut<I>) {
+        y.0 = x.0 as isize + y.0;
     }
 
     let mut world = World::default();
-    world.res.insert(10usize);
-    world.res.insert(30isize);
+    world.res.insert(U(10));
+    world.res.insert(I(30));
 
     unsafe {
         system.run(&world);
     }
-    assert_eq!(*world.res.borrow::<isize>().unwrap(), 10 + 30);
+    assert_eq!(*world.res.borrow::<I>().unwrap(), I(10 + 30));
 }
 
 #[test]
@@ -122,11 +128,6 @@ fn entity_pool() {
     assert!(!pool.dealloc(e1));
     assert_eq!(pool.iter().collect::<Vec<_>>(), [&e0, &e2_new]);
 }
-
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct U(usize);
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct I(isize);
 
 #[test]
 fn component_pool_map() {
@@ -219,17 +220,17 @@ fn component_set() {
     assert_eq!(world.comp::<I>().get(e0), None);
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Resource)]
 struct A;
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Resource)]
 struct B;
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Resource)]
 struct C;
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Resource)]
 struct D;
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Resource)]
 struct E;
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Resource)]
 struct F;
 
 #[test]
@@ -291,3 +292,11 @@ fn layout_intersect() {
         .group::<(A, B, D)>()
         .build();
 }
+
+// #[test]
+// fn into_box_system() {
+//     fn s(a: Comp<A>, b: CompMut<B>) {}
+
+//     use crate::schedule::IntoBoxSystem;
+//     let result = s.into_box_system();
+// }

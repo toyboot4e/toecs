@@ -3,18 +3,18 @@
 use toecs::{
     comp::{Comp, CompMut, Component},
     query::Iter,
-    res::{Res, ResMut},
+    res::{Res, ResMut, Resource},
     sys::System,
     World,
 };
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U(usize);
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U32(u32);
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct I(isize);
-#[derive(Component, Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, PartialOrd)]
 struct F(f32);
 
 #[test]
@@ -22,9 +22,9 @@ fn world_api() {
     let mut world = World::default();
 
     // resource
-    assert_eq!(world.set_res(1usize), None);
-    assert_eq!(world.set_res(100usize), Some(1));
-    world.set_res(-100isize);
+    assert_eq!(world.set_res(U(1)), None);
+    assert_eq!(world.set_res(U(100)), Some(U(1)));
+    world.set_res(I(-100));
 
     // components
     world.register_many::<(U, I)>();
@@ -62,15 +62,13 @@ fn single_iter() {
 
     world.register_many::<(U, I)>();
 
-    world.set_res(10usize);
-
     let e1 = world.spawn((U(10), I(-10)));
     let e2 = world.spawn((U(20), I(-20)));
     let e3 = world.spawn((U(30), I(-30)));
 
-    fn add_system(mut us: CompMut<U>, add: Res<usize>) {
+    fn add_system(mut us: CompMut<U>) {
         for u in (&mut us).iter() {
-            u.0 += *add;
+            u.0 += 10;
         }
     }
 
@@ -95,15 +93,13 @@ fn sparse_iter() {
 
     world.register_many::<(U, I)>();
 
-    world.set_res(10usize);
-
     let e1 = world.spawn((U(10), I(-10)));
     let e2 = world.spawn((U(20), I(-20)));
     let e3 = world.spawn((U(30), I(-30)));
 
-    fn add_system(mut us: CompMut<U>, is: Comp<I>, add: Res<usize>) {
+    fn add_system(mut us: CompMut<U>, is: Comp<I>) {
         for (u, i) in (&mut us, &is).iter() {
-            u.0 += -i.0 as usize + *add;
+            u.0 += -i.0 as usize + 10;
         }
     }
 
@@ -221,5 +217,61 @@ fn run_exclusive() {
     fn ex_sys(_world: &mut World) {}
 
     world.run_ex(sys);
+    world.run_ex(|_: &mut World| {});
     world.run_ex(ex_sys);
+
+    use toecs::sys::erased::{ExclusiveResultSystem, ResultSystem};
+    unsafe {
+        let _ = (|_: &mut World| {}).run_as_result_ex(&mut world);
+        let _ = sys.run_as_result(&world);
+        let _ = sys.run_as_result_ex(&mut world);
+        let _ = ex_sys.run_as_result_ex(&mut world);
+    }
 }
+
+// #[test]
+// fn parallel() -> SystemResult {
+//     use toecs::res::ResMut;
+//
+//     let mut world = World::default();
+//
+//     // resources
+//
+//     world.set_res_many((10usize, 20isize, 30.0f32));
+//
+//     fn res_ui_(u: Res<usize>, mut i: ResMut<isize>) {
+//         *i += *u as isize;
+//     }
+//
+//     fn res_u_f(u: Res<usize>, mut f: ResMut<f32>) {
+//         *f += *u as f32;
+//     }
+//
+//     world.run_par(res_ui_)?;
+//
+//     // components
+//
+//     world.set_res_many((0usize, 0isize, 0.0f32));
+//
+//     world.register_many::<(usize, isize, f32)>();
+//
+//     fn sum_u(mut res: ResMut<usize>, u: Comp<usize>) {
+//         *res = u.iter().sum();
+//     }
+//
+//     fn sum_i(mut res: ResMut<isize>, u: Comp<isize>) {
+//         *res = u.iter().sum();
+//     }
+//
+//     fn sum_f(mut res: ResMut<f32>, u: Comp<f32>) {
+//         *res = u.iter().sum();
+//     }
+//
+//     world.spawn((0usize, 0isize, 0.0f32));
+//     world.spawn((1usize, 1isize, 1.0f32));
+//     world.spawn((2usize, 2isize, 2.0f32));
+//
+//     // world.run_par(sum_u);
+//
+//     Ok(())
+// }
