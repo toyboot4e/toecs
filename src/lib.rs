@@ -12,8 +12,9 @@ pub mod world;
 pub mod prelude {
     pub use crate::{
         query::Iter,
-        sys::{erased::SystemResult, AccessSet, BorrowWorld, GatBorrowWorld},
+        sys::erased::SystemResult,
         world::{
+            borrow::{AccessSet, BorrowWorld, GatBorrowWorld},
             comp::{Comp, CompMut, Component},
             ent::Entity,
             res::{Res, ResMut},

@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod borrow;
 pub mod comp;
 pub mod ent;
 pub mod res;
@@ -172,11 +173,11 @@ impl World {
 
     /// Borrows custom type or pre-defined type. Prefer explicit alternative such as
     /// [`res`](Self::res) when doable.
-    pub fn borrow<'w, T: sys::GatBorrowWorld>(&'w self) -> T
+    pub fn borrow<'w, T: borrow::GatBorrowWorld>(&'w self) -> T
     where
-        T::Borrow: sys::BorrowWorld<'w, Item = T>,
+        T::Borrow: borrow::BorrowWorld<'w, Item = T>,
     {
-        unsafe { <<T as sys::GatBorrowWorld>::Borrow as sys::BorrowWorld>::borrow(self) }
+        unsafe { <<T as borrow::GatBorrowWorld>::Borrow as borrow::BorrowWorld>::borrow(self) }
     }
 
     /// Inserts a component to an entity. Returns some old component if it is present.
