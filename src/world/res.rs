@@ -2,8 +2,6 @@
 Resources: virtually `World` fields backed by an anymap
 */
 
-pub use toecs_derive::Resource;
-
 use std::{
     any::{self, TypeId},
     cell::RefCell,
@@ -18,6 +16,8 @@ use rustc_hash::FxHashMap;
 pub trait Resource: 'static + fmt::Debug + Downcast {}
 
 impl_downcast!(Resource);
+
+impl<T: 'static + fmt::Debug> Resource for T {}
 
 /// Dynamic fields of a `World` backed by an anymap
 #[derive(Debug, Default)]

@@ -5,18 +5,18 @@ use toecs::{
     sys::System,
     world::{
         comp::{Comp, CompMut, Component},
-        res::{Res, ResMut, Resource},
+        res::{Res, ResMut},
         World,
     },
 };
 
-#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U(usize);
-#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U32(u32);
-#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct I(isize);
-#[derive(Component, Resource, Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, PartialOrd)]
 struct F(f32);
 
 #[test]

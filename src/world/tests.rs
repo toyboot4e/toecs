@@ -3,15 +3,15 @@ use crate::{
     world::{
         comp::{Comp, CompMut, Component, ComponentPoolMap},
         ent::EntityPool,
-        res::{Res, ResMut, Resource, ResourceMap},
+        res::{Res, ResMut, ResourceMap},
         ComponentSet, World,
     },
 };
 
-#[derive(Resource, Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct U(usize);
 
-#[derive(Resource, Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct I(isize);
 
 #[test]
@@ -220,17 +220,17 @@ fn component_set() {
     assert_eq!(world.comp::<I>().get(e0), None);
 }
 
-#[derive(Debug, Component, Resource)]
+#[derive(Debug, Component)]
 struct A;
-#[derive(Debug, Component, Resource)]
+#[derive(Debug, Component)]
 struct B;
-#[derive(Debug, Component, Resource)]
+#[derive(Debug, Component)]
 struct C;
-#[derive(Debug, Component, Resource)]
+#[derive(Debug, Component)]
 struct D;
-#[derive(Debug, Component, Resource)]
+#[derive(Debug, Component)]
 struct E;
-#[derive(Debug, Component, Resource)]
+#[derive(Debug, Component)]
 struct F;
 
 #[test]
