@@ -130,6 +130,13 @@ impl<'r, T: Resource> ops::Deref for Res<'r, T> {
     }
 }
 
+impl<'r, T: Resource> Res<'r, T> {
+    #[inline]
+    pub fn deref(&self) -> &T {
+        ops::Deref::deref(self)
+    }
+}
+
 /// Mutable access to a resource of type `T`
 #[derive(Debug)]
 pub struct ResMut<'r, T: Resource> {
@@ -148,5 +155,19 @@ impl<'r, T: Resource> ops::DerefMut for ResMut<'r, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()
+    }
+}
+
+impl<'r, T: Resource> ResMut<'r, T> {
+    #[inline]
+    pub fn deref(&self) -> &T {
+        ops::Deref::deref(self)
+    }
+}
+
+impl<'r, T: Resource> ResMut<'r, T> {
+    #[inline]
+    pub fn deref_mut(&mut self) -> &mut T {
+        ops::DerefMut::deref_mut(self)
     }
 }
