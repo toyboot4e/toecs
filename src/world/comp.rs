@@ -261,6 +261,13 @@ impl<'r, T: Component> ops::Deref for Comp<'r, T> {
     }
 }
 
+impl<'r, T: Component> Comp<'r, T> {
+    #[inline]
+    pub fn deref(&self) -> &ComponentPool<T> {
+        <Self as ops::Deref>::deref(self)
+    }
+}
+
 /// Mutable access to a component pool of type `T`
 #[derive(Debug)]
 pub struct CompMut<'r, T: Component> {
@@ -279,5 +286,17 @@ impl<'r, T: Component> ops::DerefMut for CompMut<'r, T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.borrow.deref_mut()
+    }
+}
+
+impl<'r, T: Component> CompMut<'r, T> {
+    #[inline]
+    pub fn deref(&self) -> &ComponentPool<T> {
+        <Self as ops::Deref>::deref(self)
+    }
+
+    #[inline]
+    pub fn deref_mut(&mut self) -> &mut ComponentPool<T> {
+        <Self as ops::DerefMut>::deref_mut(self)
     }
 }
