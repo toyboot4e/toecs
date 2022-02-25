@@ -247,6 +247,29 @@ impl<T> AsMut<[T]> for ComponentPool<T> {
     }
 }
 
+impl<T> ops::Index<Entity> for ComponentPool<T> {
+    type Output = T;
+    fn index(&self, index: Entity) -> &Self::Output {
+        self.get(index)
+            .unwrap_or_else(|| self::get_panic::<T>(index))
+    }
+}
+
+impl<T> ops::IndexMut<Entity> for ComponentPool<T> {
+    fn index_mut(&mut self, index: Entity) -> &mut Self::Output {
+        self.get_mut(index)
+            .unwrap_or_else(|| self::get_panic::<T>(index))
+    }
+}
+
+fn get_panic<T>(index: Entity) -> ! {
+    panic!(
+        "Unable to retrieve component of type {} from entity {}",
+        any::type_name::<T>(),
+        index
+    );
+}
+
 /// Immutable access to a component pool of type `T`
 #[derive(Debug)]
 pub struct Comp<'r, T: Component> {
