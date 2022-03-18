@@ -189,6 +189,13 @@ impl<T> ComponentPool<T> {
         self.set.get_mut(ent.0)
     }
 
+    pub fn get2_mut(&mut self, a: Entity, b: Entity) -> Option<(&mut T, &mut T)> {
+        debug_assert!(a != b);
+        let a = self.set.get_mut(a.0)? as *mut _;
+        let b = self.set.get_mut(b.0)? as *mut _;
+        unsafe { Some((&mut *a, &mut *b)) }
+    }
+
     pub fn as_slice(&self) -> &[T] {
         self.set.as_slice()
     }
