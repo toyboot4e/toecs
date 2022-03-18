@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::world::{
-    comp::{Comp, CompMut, Component},
+    comp::{Comp, CompMut, Component, ComponentPool},
     ent::Entity,
     sparse::DenseIndex,
 };
@@ -90,6 +90,22 @@ impl<'a, T> AnyBinding for Binding<'a, &'a mut [T]> {
 }
 
 // `View` impls
+
+unsafe impl<'a, T: Component> View<'a> for &'a ComponentPool<T> {
+    type Binding = Binding<'a, &'a [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+        let (to_dense, ents, data) = self.parts();
+        (ents, Binding { to_dense, data })
+    }
+}
+
+unsafe impl<'a, T: Component> View<'a> for &'a mut ComponentPool<T> {
+    type Binding = Binding<'a, &'a mut [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+        let (to_dense, ents, data) = self.parts_mut();
+        (ents, Binding { to_dense, data })
+    }
+}
 
 unsafe impl<'a, T: Component> View<'a> for &'a Comp<'_, T> {
     type Binding = Binding<'a, &'a [T]>;
