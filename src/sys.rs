@@ -4,8 +4,8 @@ Systems: procedures that operate on the [`World`]
 
 pub mod erased;
 
-use crate::world::{
-    borrow::{AccessSet, Borrow, BorrowItem, BorrowWorld, GatBorrowWorld},
+use crate::{
+    world::borrow::{AccessSet, Borrow, BorrowItem, BorrowWorld, GatBorrowWorld},
     World,
 };
 

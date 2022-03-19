@@ -2,7 +2,7 @@
 
 use crate::{
     sys::{GatBorrowWorld, System},
-    world::World,
+    World,
 };
 
 pub type SystemResult<T = ()> = anyhow::Result<T>;
