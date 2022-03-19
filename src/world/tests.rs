@@ -178,6 +178,24 @@ fn component_panic() {
 }
 
 #[test]
+fn ignore_dead_entity() {
+    let mut world = World::default();
+    world.register_many::<(I, U)>();
+
+    let dead = world.spawn_empty();
+    world.despawn(dead);
+
+    world.insert(dead, I(10));
+    // assert!(world.comp.borrow::<I>().unwrap().as_slice().is_empty());
+
+    world.insert_many(dead, (I(10), U(10)));
+    // assert!(world.comp.borrow::<I>().unwrap().as_slice().is_empty());
+    // assert!(world.comp.borrow::<U>().unwrap().as_slice().is_empty());
+
+    println!("{:#?}", world.display());
+}
+
+#[test]
 fn pointer_stability_after_display() {
     let mut world = World::default();
 

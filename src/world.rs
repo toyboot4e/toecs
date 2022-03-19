@@ -146,6 +146,10 @@ impl World {
         self.ents.slice()
     }
 
+    pub fn contains(&self, ent: Entity) -> bool {
+        self.ents.contains(ent)
+    }
+
     /// Tries to get an immutable access to a component pool of type `T`
     /// # Panics
     /// Panics if the component pool is not registered. Panics when breaking the aliaslng rules.
@@ -182,7 +186,11 @@ impl World {
 
     /// Inserts a component to an entity. Returns some old component if it is present.
     pub fn insert<T: Component>(&mut self, ent: Entity, comp: T) -> Option<T> {
-        self.comp_mut::<T>().insert(ent, comp)
+        if self.contains(ent) {
+            self.comp_mut::<T>().insert(ent, comp)
+        } else {
+            None
+        }
     }
 
     /// Inserts a set of component to an entity
@@ -192,7 +200,11 @@ impl World {
 
     /// Removes a component to from entity.
     pub fn remove<T: Component>(&mut self, ent: Entity) -> Option<T> {
-        self.comp_mut::<T>().swap_remove(ent)
+        if self.contains(ent) {
+            self.comp_mut::<T>().swap_remove(ent)
+        } else {
+            None
+        }
     }
 
     /// Removes a set of component to from entity.

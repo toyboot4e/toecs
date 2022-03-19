@@ -96,6 +96,16 @@ impl EntityPool {
         &self.data
     }
 
+    pub fn contains(&self, ent: Entity) -> bool {
+        let dense = match self.entries.get(ent.0.to_usize()) {
+            Some(Entry::ToDense(dense)) => dense,
+            _ => return false,
+        };
+
+        let e = &self.data[dense.to_usize()];
+        e.generation() == ent.generation()
+    }
+
     pub fn iter(&self) -> slice::Iter<Entity> {
         self.data.iter()
     }
