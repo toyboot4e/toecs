@@ -22,7 +22,7 @@ use crate::world::{
 };
 
 /// Type boundary for component types
-pub trait Component: 'static + fmt::Debug + Downcast {}
+pub trait Component: 'static + fmt::Debug + Downcast + Send + Sync {}
 
 impl_downcast!(Component);
 
