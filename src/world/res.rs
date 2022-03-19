@@ -4,6 +4,7 @@ Resources: virtually `World` fields backed by an anymap
 
 use std::{
     any::{self, TypeId},
+    borrow,
     cell::RefCell,
     fmt, mem, ops,
 };
@@ -130,6 +131,12 @@ impl<'r, T: Resource> ops::Deref for Res<'r, T> {
     }
 }
 
+impl<'r, T: Resource> borrow::Borrow<T> for Res<'r, T> {
+    fn borrow(&self) -> &T {
+        ops::Deref::deref(&self.borrow)
+    }
+}
+
 impl<'r, T: Resource> Res<'r, T> {
     #[inline]
     pub fn deref(&self) -> &T {
@@ -158,14 +165,24 @@ impl<'r, T: Resource> ops::DerefMut for ResMut<'r, T> {
     }
 }
 
+impl<'r, T: Resource> borrow::Borrow<T> for ResMut<'r, T> {
+    fn borrow(&self) -> &T {
+        ops::Deref::deref(&self.borrow)
+    }
+}
+
+impl<'r, T: Resource> borrow::BorrowMut<T> for ResMut<'r, T> {
+    fn borrow_mut(&mut self) -> &mut T {
+        ops::DerefMut::deref_mut(&mut self.borrow)
+    }
+}
+
 impl<'r, T: Resource> ResMut<'r, T> {
     #[inline]
     pub fn deref(&self) -> &T {
         ops::Deref::deref(self)
     }
-}
 
-impl<'r, T: Resource> ResMut<'r, T> {
     #[inline]
     pub fn deref_mut(&mut self) -> &mut T {
         ops::DerefMut::deref_mut(self)
