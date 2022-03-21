@@ -122,6 +122,27 @@ impl World {
             .unwrap_or_else(|| Self::resource_panic::<T>())
     }
 
+    /// Runs a procedure that takes `&mut T` and `&mut World` temporarily taking `T` from the world
+    pub fn res_scope<T: Resource, Ret>(
+        &mut self,
+        f: impl FnOnce(&mut T, &mut World) -> Ret,
+    ) -> Ret {
+        // take the resource temporarily
+        let mut res = self.take_res::<T>().unwrap_or_else(|| {
+            panic!(
+                "res_scope: unable to get resource of type {}",
+                any::type_name::<T>()
+            );
+        });
+
+        let ret = f(&mut res, self);
+
+        // reset the resource
+        assert!(self.set_res(res).is_none());
+
+        ret
+    }
+
     /// Checks if we have a component pool for type `T`
     pub fn is_registered<T: Component>(&self) -> bool {
         self.comp.is_registered::<T>()
