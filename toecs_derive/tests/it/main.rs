@@ -1,7 +1,11 @@
 use toecs::{
-    comp::{Comp, CompMut, Component},
-    res::{Res, ResMut},
-    sys::{AccessSet, BorrowWorld, GatBorrowWorld},
+    world::{
+        borrow::{AccessSet, BorrowWorld, GatBorrowWorld},
+        comp::{Comp, CompMut, Component, ComponentPoolMap},
+        ent::Entity,
+        res::{Res, ResMut},
+        ComponentSet,
+    },
     World,
 };
 
@@ -37,4 +41,23 @@ fn custom_borrow_access_set() {
     }
 
     world.run(test_custom_borrow);
+}
+
+#[derive(ComponentSet)]
+pub struct CustomComponentSet {
+    u: U,
+    i: I,
+}
+
+#[test]
+fn custom_component_set_derive() {
+    let mut world = World::default();
+
+    world.register_set::<(U, I)>();
+    let _entity = world.spawn(CustomComponentSet { u: U(10), i: I(20) });
+
+    let u = world.borrow::<Comp<U>>();
+    assert_eq!(u.as_slice().len(), 1);
+    let i = world.borrow::<Comp<I>>();
+    assert_eq!(i.as_slice().len(), 1);
 }

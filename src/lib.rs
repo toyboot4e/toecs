@@ -16,9 +16,10 @@ pub mod prelude {
         sys::erased::SystemResult,
         world::{
             borrow::{AccessSet, BorrowWorld, GatBorrowWorld},
-            comp::{Comp, CompMut, Component, ComponentPool},
+            comp::{Comp, CompMut, Component, ComponentPool, ComponentPoolMap},
             ent::Entity,
             res::{Res, ResMut},
+            ComponentSet,
         },
         World,
     };

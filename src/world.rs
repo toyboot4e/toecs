@@ -11,6 +11,8 @@ pub mod sparse;
 
 use std::any::TypeId;
 
+pub use toecs_derive::ComponentSet;
+
 use crate::{
     world::{
         comp::{Component, ComponentPoolMap},
