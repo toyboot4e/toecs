@@ -180,7 +180,7 @@ fn component_panic() {
 #[test]
 fn ignore_dead_entity() {
     let mut world = World::default();
-    world.register_many::<(I, U)>();
+    world.register_set::<(I, U)>();
 
     let dead = world.spawn_empty();
     world.despawn(dead);
@@ -188,7 +188,7 @@ fn ignore_dead_entity() {
     world.insert(dead, I(10));
     // assert!(world.comp.borrow::<I>().unwrap().as_slice().is_empty());
 
-    world.insert_many(dead, (I(10), U(10)));
+    world.insert_set(dead, (I(10), U(10)));
     // assert!(world.comp.borrow::<I>().unwrap().as_slice().is_empty());
     // assert!(world.comp.borrow::<U>().unwrap().as_slice().is_empty());
 
@@ -224,7 +224,7 @@ fn component_set() {
     let mut world = World::default();
 
     type A = (U, I);
-    world.register_many::<A>();
+    world.register_set::<A>();
 
     let e0 = world.spawn_empty();
     (U(10), I(-10)).insert(e0, &mut world);

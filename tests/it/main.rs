@@ -6,8 +6,8 @@ use toecs::{
     world::{
         comp::{Comp, CompMut, Component},
         res::{Res, ResMut},
-        World,
     },
+    World,
 };
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,10 +29,10 @@ fn world_api() {
     world.set_res(I(-100));
 
     // components
-    world.register_many::<(U, I)>();
+    world.register_set::<(U, I)>();
 
     let e1 = world.spawn_empty();
-    world.insert_many(e1, (U(10), I(-10)));
+    world.insert_set(e1, (U(10), I(-10)));
     let e2 = world.spawn((U(20), I(-20)));
     let e3 = world.spawn((U(30), I(-30)));
 
@@ -49,7 +49,7 @@ fn world_api() {
         assert_eq!((&us).iter().collect::<Vec<_>>(), [&U(10), &U(30)]);
     }
 
-    world.remove_many::<(U, I)>(e1);
+    world.remove_set::<(U, I)>(e1);
     assert_eq!(world.comp::<U>().get(e1), None);
     assert_eq!(world.comp::<I>().get(e1), None);
 
@@ -62,7 +62,7 @@ fn world_api() {
 fn single_iter() {
     let mut world = World::default();
 
-    world.register_many::<(U, I)>();
+    world.register_set::<(U, I)>();
 
     let e1 = world.spawn((U(10), I(-10)));
     let e2 = world.spawn((U(20), I(-20)));
@@ -93,7 +93,7 @@ fn single_iter() {
 fn sparse_iter() {
     let mut world = World::default();
 
-    world.register_many::<(U, I)>();
+    world.register_set::<(U, I)>();
 
     let e1 = world.spawn((U(10), I(-10)));
     let e2 = world.spawn((U(20), I(-20)));
@@ -142,7 +142,7 @@ fn sparse_iter() {
 fn sparse_iter_holes() {
     let mut world = World::default();
 
-    world.register_many::<(U, I, F)>();
+    world.register_set::<(U, I, F)>();
 
     let ui_ = world.spawn((U(10), I(10)));
     let u_f = world.spawn((U(20), F(20.0)));
@@ -194,8 +194,8 @@ fn sparse_iter_holes() {
 fn borrow_type_inference() {
     let mut world = World::default();
 
-    world.set_res_many((U(0), I(0)));
-    world.register_many::<(U, I)>();
+    world.set_res_set((U(0), I(0)));
+    world.register_set::<(U, I)>();
 
     {
         let _: Res<U> = world.borrow();
@@ -213,7 +213,7 @@ fn borrow_type_inference() {
 #[test]
 fn run_exclusive() {
     let mut world = World::default();
-    world.set_res_many((U(0), I(0), F(0.0)));
+    world.set_res_set((U(0), I(0), F(0.0)));
 
     fn sys(_u: Res<U>, _i: Res<I>, _f: Res<F>) {}
     fn ex_sys(_world: &mut World) {}
@@ -239,7 +239,7 @@ fn run_exclusive() {
 //
 //     // resources
 //
-//     world.set_res_many((10usize, 20isize, 30.0f32));
+//     world.set_res_set((10usize, 20isize, 30.0f32));
 //
 //     fn res_ui_(u: Res<usize>, mut i: ResMut<isize>) {
 //         *i += *u as isize;
@@ -253,9 +253,9 @@ fn run_exclusive() {
 //
 //     // components
 //
-//     world.set_res_many((0usize, 0isize, 0.0f32));
+//     world.set_res_set((0usize, 0isize, 0.0f32));
 //
-//     world.register_many::<(usize, isize, f32)>();
+//     world.register_set::<(usize, isize, f32)>();
 //
 //     fn sum_u(mut res: ResMut<usize>, u: Comp<usize>) {
 //         *res = u.iter().sum();

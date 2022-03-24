@@ -28,8 +28,8 @@ fn custom_borrow_access_set() {
 
     let mut world = World::default();
 
-    world.register_many::<(U, I)>();
-    world.set_res_many((U(10), I(10)));
+    world.register_set::<(U, I)>();
+    world.set_res_set((U(10), I(10)));
     world.spawn((U(20), I(20)));
 
     fn test_custom_borrow(c: CustomBorrow) {

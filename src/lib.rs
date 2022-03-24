@@ -4,7 +4,8 @@ Toy ECS based on sparse sets
 
 #![feature(trace_macros)]
 
-
+pub mod app;
+pub mod cmd;
 pub mod query;
 pub mod sys;
 pub mod world;
@@ -71,7 +72,7 @@ impl World {
     }
 
     /// Sets a set of of resources
-    pub fn set_res_many<T: ResourceSet>(&mut self, set: T) {
+    pub fn set_res_set<T: ResourceSet>(&mut self, set: T) {
         set.insert(self);
     }
 
@@ -81,7 +82,7 @@ impl World {
     }
 
     /// Takes out a set of resource
-    pub fn take_res_many<T: ResourceSet>(&mut self) {
+    pub fn take_res_set<T: ResourceSet>(&mut self) {
         T::take(self);
     }
 
@@ -160,8 +161,8 @@ impl World {
         self.comp.register::<T>()
     }
 
-    /// Registers a set of component pools
-    pub fn register_many<C: ComponentSet>(&mut self) {
+    /// Regregister_setof component pools
+    pub fn register_set<C: ComponentSet>(&mut self) {
         C::register(&mut self.comp);
     }
 
@@ -245,7 +246,7 @@ impl World {
     }
 
     /// Inserts a set of component to an entity
-    pub fn insert_many<C: ComponentSet>(&mut self, ent: Entity, set: C) {
+    pub fn insert_set<C: ComponentSet>(&mut self, ent: Entity, set: C) {
         set.insert(ent, self);
     }
 
@@ -259,7 +260,7 @@ impl World {
     }
 
     /// Removes a set of component to from entity.
-    pub fn remove_many<C: ComponentSet>(&mut self, ent: Entity) {
+    pub fn remove_set<C: ComponentSet>(&mut self, ent: Entity) {
         C::remove(ent, self);
     }
 
