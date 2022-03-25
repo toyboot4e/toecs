@@ -267,7 +267,7 @@ impl World {
 
     /// # Panics
     /// Panics if the system borrows unregistered data or if the system has self confliction.
-    pub fn run<Params, Ret, S: System<Params, Ret>>(&mut self, mut sys: S) -> Ret {
+    pub fn run<Params, Ret, S: System<Params, Ret>>(&self, mut sys: S) -> Ret {
         debug_assert!(
             !sys.accesses().self_conflict(),
             "The system has self confliction!"
