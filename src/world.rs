@@ -1,4 +1,4 @@
-//! World: container of entity, components and resources
+//! World: container of entities, components and resources
 
 #[cfg(test)]
 mod tests;

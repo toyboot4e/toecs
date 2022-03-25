@@ -33,7 +33,7 @@ pub fn impl_component_set(ast: DeriveInput) -> TokenStream2 {
 
             fn insert(self, ent: Entity, world: &mut World) {
                 #(
-                    world.insert(ent, self.#field_names);
+                    world.insert_set(ent, self.#field_names);
                 )*
             }
 
