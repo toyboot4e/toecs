@@ -2,11 +2,7 @@
 Queries: component iteration
 */
 
-use std::{
-    marker::PhantomData,
-    mem::MaybeUninit,
-    ops::{Deref, DerefMut},
-};
+use std::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::world::{
     comp::{Comp, CompMut, Component, ComponentPool},
