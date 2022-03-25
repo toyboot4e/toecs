@@ -22,7 +22,7 @@ use crate::{
     World,
 };
 
-/// One ore more components
+/// One ore more components, or set of component sets
 pub trait ComponentSet: Send + Sync + 'static {
     /// Registers the set of component storages to the world
     fn register(map: &mut ComponentPoolMap);
@@ -34,35 +34,55 @@ pub trait ComponentSet: Send + Sync + 'static {
     fn type_ids() -> Box<[TypeId]>;
 }
 
+impl<T: Component> ComponentSet for T {
+    fn register(map: &mut ComponentPoolMap) {
+        map.register::<Self>();
+    }
+
+    fn insert(self, ent: Entity, world: &mut World) {
+        world.insert(ent, self);
+    }
+
+    fn remove(ent: Entity, world: &mut World) {
+        world.remove::<Self>(ent);
+    }
+
+    fn type_ids() -> Box<[TypeId]> {
+        Box::new([TypeId::of::<T>()])
+    }
+}
+
 // NOTE: `(T)` is `T` while `(T,)` is a tuple
 macro_rules! impl_component_set {
     ($($i:tt, $xs:ident),+ $(,)?) => {
         impl<$($xs),+> ComponentSet for ($($xs,)+)
         where
-            $($xs: Component,)+
+            $($xs: ComponentSet,)+
         {
             fn register(map: &mut ComponentPoolMap) {
                 $(
-                    map.register::<$xs>();
+                    $xs::register(map);
                 )+
             }
 
             fn insert(self, ent: Entity, world: &mut World) {
                 $(
-                    world.insert(ent, self.$i);
+                    $xs::insert(self.$i, ent, world);
                 )+
             }
 
             fn remove(ent: Entity, world: &mut World) {
                 $(
-                    world.remove::<$xs>(ent);
+                    $xs::remove(ent, world);
                 )+
             }
 
             fn type_ids() -> Box<[TypeId]> {
-                Box::new([
-                    $(TypeId::of::<$xs>(),)+
-                ])
+                let mut ids = Vec::new();
+                $(
+                    ids.extend($xs::type_ids().into_iter());
+                )*
+                ids.into_boxed_slice()
             }
         }
     };

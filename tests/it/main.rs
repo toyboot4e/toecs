@@ -231,6 +231,23 @@ fn run_exclusive() {
     }
 }
 
+#[test]
+fn component_set_definition() {
+    let mut world = World::default();
+    world.register_set::<(U, I, F)>();
+
+    let entity = world.spawn_empty();
+
+    // a component is a component set
+    world.insert_set(entity, U(0));
+
+    // set of components is a component set
+    world.insert_set(entity, (I(1), U(1)));
+
+    // set of component set is a component set
+    world.insert_set(entity, ((U(2), I(2), F(2.2)), (U(3), I(3))));
+}
+
 // #[test]
 // fn parallel() -> SystemResult {
 //     use toecs::res::ResMut;
