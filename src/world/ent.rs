@@ -7,7 +7,10 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
-use crate::world::{comp, sparse::*};
+use crate::{
+    prelude::ComponentPool,
+    world::{comp, sparse::*},
+};
 
 /// Identifier that represents an object made of components
 ///
@@ -53,8 +56,7 @@ impl Entity {
         self.0.generation()
     }
 
-    /// FIXME: Abstract `&Comp<T>` and `&CompMut<T>` (with `AsRef<T>`?)
-    pub fn get<'a, T: comp::Component>(&self, comp: &'a comp::Comp<T>) -> Option<&'a T> {
+    pub fn get<'a, T: comp::Component>(&self, comp: &'a ComponentPool<T>) -> Option<&'a T> {
         comp.get(*self)
     }
 }
