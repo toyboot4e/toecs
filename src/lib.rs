@@ -162,7 +162,7 @@ impl World {
         self.comp.register::<T>()
     }
 
-    /// Regregister_setof component pools
+    /// Regregister a set of component pools
     pub fn register_set<C: ComponentSet>(&mut self) {
         C::register(&mut self.comp);
     }
@@ -283,6 +283,7 @@ impl World {
     {
         unsafe { sys.run_ex(self) }
     }
+
     /// Returns a debug display. This is safe because it has exclusive access.
     pub fn display(&mut self) -> WorldDisplay {
         let mut world = World::default();
