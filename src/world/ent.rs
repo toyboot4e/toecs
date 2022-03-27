@@ -125,8 +125,8 @@ impl EntityPool {
 
             entity
         } else {
-            // FIXME: Linear search is too slow! Make a linked list of free slots instead.
-            let (i_entry, gen) = self.find_empty_entry();
+            // not full
+            let (i_entry, gen) = self.next_empty_entry();
             let gen = gen.increment();
 
             // recycle the empty slot
@@ -142,17 +142,6 @@ impl EntityPool {
 
             entity
         }
-    }
-
-    // find empty entry and recycle the slot
-    fn find_empty_entry(&self) -> (usize, &Generation) {
-        for (i, entry) in self.entries.iter().enumerate() {
-            if let Entry::Empty { gen: g } = entry {
-                return (i, g);
-            }
-        }
-
-        unreachable!()
     }
 
     pub fn dealloc(&mut self, ent: Entity) -> bool {
@@ -175,5 +164,16 @@ impl EntityPool {
         } else {
             false
         }
+    }
+
+    // FIXME: Linear search is too slow! Make a linked list of free slots instead.
+    fn next_empty_entry(&self) -> (usize, &Generation) {
+        for (i, entry) in self.entries.iter().enumerate() {
+            if let Entry::Empty { gen: g } = entry {
+                return (i, g);
+            }
+        }
+
+        unreachable!()
     }
 }
