@@ -307,3 +307,41 @@ fn entity_reservation() {
     assert_eq!(ents.slice().len(), 2, "dense array error");
     assert!(ents.contains(e0) && ents.contains(e1), "sparse array error");
 }
+
+#[test]
+fn commands() {
+    let mut world = World::default();
+    world.register_set::<(U, I)>();
+
+    let e0 = world.reserve_atomic();
+    let e1 = world.reserve_atomic();
+
+    use crate::cmd;
+    let mut cmds = cmd::CommandQueue::default();
+
+    cmds.push(cmd::Insert {
+        entity: e1,
+        comp: (U(10), I(10)),
+    });
+
+    cmds.push(cmd::Spawn {
+        comp: (U(20), I(20)),
+    });
+
+    world.synchronize();
+    cmds.apply(&mut world);
+
+    assert_eq!(world.entities().len(), 3);
+
+    let u = world.comp::<U>();
+    let i = world.comp::<I>();
+
+    assert!(u.get(e0).is_none());
+    assert!(i.get(e0).is_none());
+
+    assert_eq!(u.get(e1), Some(&U(10)));
+    assert_eq!(i.get(e1), Some(&I(10)));
+
+    assert_eq!(u.as_slice().len(), 2);
+    assert_eq!(i.as_slice().len(), 2);
+}
