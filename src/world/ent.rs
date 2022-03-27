@@ -67,14 +67,18 @@ impl Entity {
 /// 2. It needs to recycle sparse index so that the generation is incremented.
 #[derive(Debug, Default)]
 pub struct EntityPool {
-    entries: Vec<Entry>,
-    data: Vec<Entity>,
+    sparse: Vec<Entry>,
+    dense: Vec<Entity>,
+    first_free: Option<RawSparseIndex>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Entry {
     ToDense(DenseIndex),
-    Empty { gen: Generation },
+    Empty {
+        gen: Generation,
+        next_free: Option<RawSparseIndex>,
+    },
 }
 
 impl fmt::Debug for Entry {
@@ -86,59 +90,61 @@ impl fmt::Debug for Entry {
                 dense.raw().to_usize(),
                 dense.generation().to_usize()
             ),
-            Self::Empty { gen } => write!(f, "Empty({})", gen.to_usize()),
+            Self::Empty { gen, next_free } => {
+                write!(f, "Empty({}, {:?})", gen.to_usize(), next_free)
+            }
         }
     }
 }
 
 impl EntityPool {
     pub fn slice(&self) -> &[Entity] {
-        &self.data
+        &self.dense
     }
 
     pub fn contains(&self, ent: Entity) -> bool {
-        let dense = match self.entries.get(ent.0.to_usize()) {
+        let dense = match self.sparse.get(ent.0.to_usize()) {
             Some(Entry::ToDense(dense)) => dense,
             _ => return false,
         };
 
-        let e = &self.data[dense.to_usize()];
+        let e = &self.dense[dense.to_usize()];
         e.generation() == ent.generation()
     }
 
     pub fn iter(&self) -> slice::Iter<Entity> {
-        self.data.iter()
+        self.dense.iter()
     }
 
     pub fn alloc(&mut self) -> Entity {
-        if self.data.len() >= self.entries.len() {
-            // full
-            debug_assert_eq!(self.data.len(), self.entries.len());
+        if let Some(free) = self.first_free.take() {
+            let (old_gen, second_free) = match self.sparse[free.to_usize()] {
+                Entry::Empty { gen, next_free } => (gen, next_free),
+                _ => unreachable!("free slot bug"),
+            };
 
-            let slot = self.data.len();
-            let entity = Entity::initial(RawSparseIndex::from_usize(slot));
+            let gen = old_gen.increment();
+            let entity = Entity(SparseIndex::new(free, gen));
+            let dense = DenseIndex::new(RawDenseIndex::from_usize(self.dense.len()), gen);
 
-            self.data.push(entity.clone());
-            self.entries.push(Entry::ToDense(DenseIndex::initial(
-                RawDenseIndex::from_usize(slot),
-            )));
+            // update the sparse/dense array and the free slot
+            self.first_free = second_free.clone();
+            self.dense.push(entity.clone());
+            self.sparse[free.to_usize()] = Entry::ToDense(dense);
 
             entity
         } else {
-            // not full
-            let (i_entry, gen) = self.next_empty_entry();
-            let gen = gen.increment();
+            // full
+            debug_assert_eq!(self.dense.len(), self.sparse.len(), "free slot bug");
 
-            // recycle the empty slot
-            let dense_slot = self.data.len();
-            let entity = Entity(SparseIndex::new(
-                RawSparseIndex::from_usize(dense_slot),
-                gen,
-            ));
+            let index = self.dense.len();
+            let entity = Entity::initial(RawSparseIndex::from_usize(index));
 
-            self.data.push(entity.clone());
-            self.entries[i_entry] =
-                Entry::ToDense(DenseIndex::new(RawDenseIndex::from_usize(dense_slot), gen));
+            // update the sparse/dense array (the free slot is None)
+            self.dense.push(entity.clone());
+            self.sparse.push(Entry::ToDense(DenseIndex::initial(
+                RawDenseIndex::from_usize(index),
+            )));
 
             entity
         }
@@ -146,34 +152,27 @@ impl EntityPool {
 
     pub fn dealloc(&mut self, ent: Entity) -> bool {
         let slot = ent.0.to_usize();
-        if slot > self.entries.len() - 1 {
+        if slot > self.sparse.len() - 1 {
             return false;
         }
 
-        let dense = match self.entries[slot] {
+        let dense = match self.sparse[slot] {
             Entry::ToDense(e) => e,
             Entry::Empty { .. } => return false,
         };
 
-        if dense.generation() == ent.generation() {
-            self.entries[slot] = Entry::Empty {
-                gen: ent.generation(),
-            };
-            self.data.remove(dense.to_usize());
-            true
-        } else {
-            false
-        }
-    }
-
-    // FIXME: Linear search is too slow! Make a linked list of free slots instead.
-    fn next_empty_entry(&self) -> (usize, &Generation) {
-        for (i, entry) in self.entries.iter().enumerate() {
-            if let Entry::Empty { gen: g } = entry {
-                return (i, g);
-            }
+        if dense.generation() != ent.generation() {
+            return false;
         }
 
-        unreachable!()
+        // update sparse/dense array and the free slots
+        self.sparse[slot] = Entry::Empty {
+            gen: ent.generation(),
+            next_free: self.first_free,
+        };
+        self.dense.remove(dense.to_usize());
+        self.first_free = Some(RawSparseIndex::from_usize(slot));
+
+        true
     }
 }
