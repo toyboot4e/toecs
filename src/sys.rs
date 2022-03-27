@@ -3,6 +3,7 @@ Systems: procedures that operate on the [`World`]
 */
 
 pub mod erased;
+pub mod owned;
 
 use crate::{
     world::borrow::{AccessSet, Borrow, BorrowItem, BorrowWorld, GatBorrowWorld},
@@ -61,7 +62,7 @@ macro_rules! reversed1 {
         $macro!($($reversed),+);
     };
     ($macro:tt, [$first_0:tt, $($rest_0:tt,)*] $($reversed:tt,)*) => {
-        reversed1!($macro, [$($rest_0,)*] $first_0, $($reversed,)*);
+        $crate::sys::reversed1!($macro, [$($rest_0,)*] $first_0, $($reversed,)*);
     };
 }
 
@@ -70,10 +71,13 @@ macro_rules! recursive {
         $macro!($first);
     };
     ($macro:tt, $first:tt, $($rest:tt),* $(,)?) => {
-        reversed1!($macro, [$first, $($rest,)*]);
-        recursive!($macro, $($rest),*);
+        $crate::sys::reversed1!($macro, [$first, $($rest,)*]);
+        $crate::sys::recursive!($macro, $($rest),*);
     };
 }
+
+pub(crate) use recursive;
+pub(crate) use reversed1;
 
 recursive!(
     impl_system,
