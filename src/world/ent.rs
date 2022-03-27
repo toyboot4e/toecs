@@ -2,7 +2,10 @@
 Entity: ID associated with a set of components
 */
 
-use std::{fmt, slice};
+use std::{
+    fmt, slice,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use crate::world::{comp, sparse::*};
 
@@ -70,6 +73,10 @@ pub struct EntityPool {
     sparse: Vec<Entry>,
     dense: Vec<Entity>,
     first_free: Option<RawSparseIndex>,
+    /// Tracks the number of free entries
+    n_free: usize,
+    /// Tracks the number of entities reserved atomically
+    n_reserved: AtomicU32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -117,7 +124,7 @@ impl EntityPool {
     }
 
     pub fn alloc(&mut self) -> Entity {
-        if let Some(free) = self.first_free.take() {
+        if let Some(free) = self.first_free {
             let (old_gen, second_free) = match self.sparse[free.to_usize()] {
                 Entry::Empty { gen, next_free } => (gen, next_free),
                 _ => unreachable!("free slot bug"),
@@ -129,6 +136,7 @@ impl EntityPool {
 
             // update the sparse/dense array and the free slot
             self.first_free = second_free.clone();
+            self.n_free -= 1;
             self.dense.push(entity.clone());
             self.sparse[free.to_usize()] = Entry::ToDense(dense);
 
@@ -172,7 +180,67 @@ impl EntityPool {
         };
         self.dense.remove(dense.to_usize());
         self.first_free = Some(RawSparseIndex::from_usize(slot));
+        self.n_free += 1;
 
         true
+    }
+
+    /// Reserves an [`Entity`] only requiring `&self`. Make sure to call
+    /// [`synchronize`](Self::synchronize) before use.
+    pub fn reserve_atomic(&self) -> Entity {
+        let n_reserved = self.n_reserved.fetch_add(1, Ordering::Relaxed) as usize;
+
+        if n_reserved >= self.n_free {
+            let nth_push = n_reserved - self.n_free;
+            let slot = self.sparse.len() + nth_push;
+            Entity::initial(RawSparseIndex::from_usize(slot))
+        } else {
+            // run linear serarch for the free slots
+            let sparse = self.find_nth_free(n_reserved);
+
+            let gen = match self.sparse[sparse.to_usize()] {
+                Entry::ToDense(_) => unreachable!("free slot bug (atomic)"),
+                Entry::Empty { gen, .. } => gen,
+            };
+
+            Entity(SparseIndex::new(sparse, gen))
+        }
+    }
+
+    fn find_nth_free(&self, nth: usize) -> RawSparseIndex {
+        let mut sparse = match self.first_free {
+            Some(free) => free,
+            None => unreachable!("free slot bug: tried to get free slot, but there's none"),
+        };
+
+        debug_assert!(
+            matches!(
+                self.sparse.get(sparse.to_usize()),
+                Some(Entry::Empty { .. })
+            ),
+            "free slot bug: first free slot is actually filled"
+        );
+
+        for i in 0..nth {
+            sparse = match self.sparse[i] {
+                Entry::Empty {
+                    next_free: Some(free_index),
+                    ..
+                } => free_index,
+                _ => unreachable!("free slot bug: free slot at `{}` is actually filled", i),
+            }
+        }
+
+        sparse
+    }
+
+    /// Spawns all the reserved entities
+    pub fn synchronize(&mut self) {
+        let n_reserved = *self.n_reserved.get_mut();
+        *self.n_reserved.get_mut() = 0;
+
+        (0..n_reserved).for_each(|_| {
+            self.alloc();
+        });
     }
 }

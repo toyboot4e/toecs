@@ -103,10 +103,24 @@ impl AccessSet {
     }
 }
 
-/// Types that borrow some data from a `World`: `Res<T>`, `Comp<T>`, ..
+/// Types that borrow some data from a [`World`]: [`Res<T>`], [`Comp<T>`], ..
 ///
 /// This type is basically [`BorrowWorld`], but actially a different type just to emulate GAT on
 /// stable Rust.
+///
+/// # Default implementations
+///
+/// - [`Res<T>`], [`ResMut<T>`]
+/// - [`Comp<T>`], [`CompMut<T>`]
+/// - TODO: `NonSend<T>`, `NonSendMut<T>`
+///
+/// # Derive macro
+///
+/// User can define custom [`GatBorrowWorld`] type with the derive macro:
+///
+/// ```
+/// // TODO:
+/// ```
 pub trait GatBorrowWorld {
     /// Emulates `Item<'w>` with `<GatBorrowWorld::Borrow as BorrowWorld<'w>>::Item`
     type Borrow: for<'a> BorrowWorld<'a>;

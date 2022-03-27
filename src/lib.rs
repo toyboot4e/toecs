@@ -179,6 +179,17 @@ impl World {
         self.ents.alloc()
     }
 
+    /// Reserves an [`Entity`], only requireing `&self`. Make sure to call
+    /// [`synchronize`](Self::synchronize) before use.
+    pub fn reserve_atomic(&mut self) -> Entity {
+        self.ents.reserve_atomic()
+    }
+
+    /// Spawns all the reserved entities
+    pub fn synchronize(&mut self) {
+        self.ents.synchronize()
+    }
+
     /// Despawns an [`Entity`]. Returns if it was an active entity.
     pub fn despawn(&mut self, ent: Entity) -> bool {
         if !self.ents.dealloc(ent) {

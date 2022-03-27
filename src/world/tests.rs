@@ -2,8 +2,9 @@ use crate::{
     sys::System,
     world::{
         comp::{Comp, CompMut, Component, ComponentPoolMap},
-        ent::EntityPool,
+        ent::{Entity, EntityPool},
         res::{Res, ResMut, ResourceMap},
+        sparse::{RawSparseIndex, SparseIndex},
         ComponentSet, World,
     },
 };
@@ -278,4 +279,31 @@ fn confliction() {
         assert!(!i_i.accesses().conflicts(&iii.accesses()));
         assert!(iii.accesses().conflicts(&im_.accesses()));
     }
+}
+
+#[test]
+fn entity_reservation() {
+    let mut ents = EntityPool::default();
+
+    let e0 = ents.reserve_atomic();
+    assert_eq!(
+        e0,
+        Entity(SparseIndex::initial(RawSparseIndex::from_usize(0)))
+    );
+
+    let e1 = ents.reserve_atomic();
+    assert_eq!(
+        e1,
+        Entity(SparseIndex::initial(RawSparseIndex::from_usize(1)))
+    );
+
+    assert_eq!(ents.slice().len(), 0, "dense array error");
+    assert!(
+        !(ents.contains(e0) || ents.contains(e1)),
+        "sparse array error"
+    );
+
+    ents.synchronize();
+    assert_eq!(ents.slice().len(), 2, "dense array error");
+    assert!(ents.contains(e0) && ents.contains(e1), "sparse array error");
 }
