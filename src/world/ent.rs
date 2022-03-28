@@ -59,6 +59,13 @@ impl Entity {
     pub fn get<'a, T: comp::Component>(&self, comp: &'a ComponentPool<T>) -> Option<&'a T> {
         comp.get(*self)
     }
+
+    pub fn get_mut<'a, T: comp::Component>(
+        &self,
+        comp: &'a mut ComponentPool<T>,
+    ) -> Option<&'a mut T> {
+        comp.get_mut(*self)
+    }
 }
 
 /// Pool of entities
