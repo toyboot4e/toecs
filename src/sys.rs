@@ -19,6 +19,16 @@ pub unsafe trait System<Params, Ret> {
     fn accesses(&self) -> AccessSet;
 }
 
+/// [`System`] that runs with user arguments
+pub unsafe trait ArgSystem<Data, Params, Ret> {
+    /// Run the system with user argument
+    /// # Panics
+    /// - Panics when breaking the aliasing rules
+    unsafe fn run_arg(&mut self, arg: Data, w: &World) -> Ret;
+    /// Returns accesses to the [`World`]
+    fn accesses(&self) -> AccessSet;
+}
+
 macro_rules! impl_system {
     ($($xs:ident),+ $(,)?) => {
         #[allow(warnings)]
@@ -41,6 +51,40 @@ macro_rules! impl_system {
 
                 let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
                 inner(self, $($xs,)+)
+            }
+
+            fn accesses(&self) -> AccessSet {
+                let mut set = AccessSet::default();
+                [$(
+                    Borrow::<$xs>::accesses(),
+                )+]
+                    .iter()
+                    .for_each(|a| set.merge_impl(a));
+                set
+            }
+        }
+
+        #[allow(warnings)]
+        unsafe impl<Ret, Data, $($xs),+, F> ArgSystem<Data, ($($xs,)+), Ret> for F
+        where
+            $($xs: GatBorrowWorld,)+
+            // The GAT hack above only works for references of functions and
+            // requires such mysterious boundary:
+            for<'a> &'a mut F: FnMut(Data, $($xs),+) -> Ret +
+                FnMut(Data, $(BorrowItem<$xs>),+) -> Ret
+        {
+            // To work with the `F` we need such an odd function:
+            unsafe fn run_arg(&mut self, data: Data, w: &World) -> Ret {
+                fn inner<Ret, Data, $($xs),+>(
+                    mut f: impl FnMut(Data, $($xs),+) -> Ret,
+                    data: Data,
+                    $($xs: $xs,)+
+                ) -> Ret {
+                    f(data, $($xs,)+)
+                }
+
+                let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
+                inner(self, data, $($xs,)+)
             }
 
             fn accesses(&self) -> AccessSet {
@@ -125,4 +169,28 @@ where
     }
 }
 
-// NOTE: `ExclusiveSystem` impl confliction is avoded carefully!
+/// Upcast of [`ArgSystem`] s and function that takes `&mut World`
+pub unsafe trait ExclusiveArgSystem<Data, Params, Ret> {
+    unsafe fn run_arg_ex(&mut self, data: Data, w: &mut World) -> Ret;
+}
+
+/// Every `FnMut(&mut World)` is an [`ExclusiveSystem`]
+unsafe impl<F, Data, Ret> ExclusiveArgSystem<Data, World, Ret> for F
+where
+    F: FnMut(Data, &mut World) -> Ret,
+{
+    unsafe fn run_arg_ex(&mut self, data: Data, w: &mut World) -> Ret {
+        self(data, w)
+    }
+}
+
+/// Every [`System`] cam be run as an [`ExclusiveSystem`]
+unsafe impl<S, Data, Params, Ret> ExclusiveArgSystem<Data, Params, Ret> for S
+where
+    S: ArgSystem<Data, Params, Ret>,
+    Params: GatBorrowWorld,
+{
+    unsafe fn run_arg_ex(&mut self, data: Data, w: &mut World) -> Ret {
+        self.run_arg(data, w)
+    }
+}

@@ -232,6 +232,18 @@ fn run_exclusive() {
 }
 
 #[test]
+fn run_with_args() {
+    let mut world = World::default();
+    world.set_res_set((U(0), I(0), F(0.0)));
+
+    fn sys(arg: u32, _u: Res<U>, _i: Res<I>, _f: Res<F>) -> u32 {
+        arg
+    }
+
+    assert_eq!(world.run_arg(10u32, sys), 10);
+}
+
+#[test]
 fn component_set_definition() {
     let mut world = World::default();
     world.register_set::<(U, I, F)>();

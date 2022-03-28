@@ -295,6 +295,32 @@ impl World {
         unsafe { sys.run_ex(self) }
     }
 
+    /// Run a system with user argumewnt
+    /// # Panics
+    /// Panics if the system borrows unregistered data or if the system has self confliction.
+    pub fn run_arg<Data, Params, Ret, S: sys::ArgSystem<Data, Params, Ret>>(
+        &self,
+        data: Data,
+        mut sys: S,
+    ) -> Ret {
+        debug_assert!(
+            !sys.accesses().self_conflict(),
+            "The system has self confliction!"
+        );
+        unsafe { sys.run_arg(data, self) }
+    }
+
+    /// Run an exclusive system with user argumewnt
+    /// # Panics
+    /// Panics if the system borrows unregistered data or if the system has self confliction.
+    pub fn run_arg_ex<Data, Params, Ret, S: sys::ExclusiveArgSystem<Data, Params, Ret>>(
+        &mut self,
+        data: Data,
+        mut sys: S,
+    ) -> Ret {
+        unsafe { sys.run_arg_ex(data, self) }
+    }
+
     /// Returns a debug display. This is safe because it has exclusive access.
     pub fn display(&mut self) -> WorldDisplay {
         let mut world = World::default();
