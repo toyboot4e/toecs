@@ -17,10 +17,10 @@ struct I(u32);
 
 #[derive(GatBorrowWorld)]
 pub struct CustomBorrow<'w> {
-    res_u: Res<'w, U>,
-    res_i: ResMut<'w, I>,
-    comp_u: Comp<'w, U>,
-    comp_i: CompMut<'w, I>,
+    _res_u: Res<'w, U>,
+    _res_i: ResMut<'w, I>,
+    _comp_u: Comp<'w, U>,
+    _comp_i: CompMut<'w, I>,
 }
 
 #[test]
@@ -36,7 +36,7 @@ fn custom_borrow_access_set() {
     world.set_res_set((U(10), I(10)));
     world.spawn((U(20), I(20)));
 
-    fn test_custom_borrow(c: CustomBorrow) {
+    fn test_custom_borrow(_c: CustomBorrow) {
         //
     }
 
