@@ -35,24 +35,24 @@ pub trait IntoBoxSystem<Params, Ret> {
     fn into_box_system(self) -> BoxSystem<Ret>;
 }
 
-pub struct ExBoxSystem<Ret> {
+pub struct ExclusiveBoxSystem<Ret> {
     f: Box<dyn for<'w> FnMut(&'w mut World) -> Ret>,
 }
 
-impl<Ret> fmt::Debug for ExBoxSystem<Ret> {
+impl<Ret> fmt::Debug for ExclusiveBoxSystem<Ret> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "BoxSystem")
     }
 }
 
-impl<Ret> ExBoxSystem<Ret> {
+impl<Ret> ExclusiveBoxSystem<Ret> {
     pub fn run_ex(&mut self, world: &mut World) -> Ret {
         (self.f)(world)
     }
 }
 
-pub trait IntoExBoxSystem<Params, Ret> {
-    fn into_ex_box_system(self) -> ExBoxSystem<Ret>;
+pub trait IntoExclusiveBoxSystem<Params, Ret> {
+    fn into_ex_box_system(self) -> ExclusiveBoxSystem<Ret>;
 }
 
 macro_rules! impl_into_system {
@@ -76,17 +76,17 @@ macro_rules! impl_into_system {
             }
         }
 
-        impl<S, $($xs),*, Ret> IntoExBoxSystem<($($xs,)*), Ret> for S
+        impl<S, $($xs),*, Ret> IntoExclusiveBoxSystem<($($xs,)*), Ret> for S
         where
             S: ExclusiveSystem<($($xs,)*), Ret> + 'static,
             $($xs: GatBorrowWorld,)*
         {
-            fn into_ex_box_system(mut self) -> ExBoxSystem<Ret> {
+            fn into_ex_box_system(mut self) -> ExclusiveBoxSystem<Ret> {
                 let f = Box::new(move |world: &mut World| unsafe {
                     S::run_ex(&mut self, world)
                 });
 
-                ExBoxSystem {
+                ExclusiveBoxSystem {
                     f,
                 }
             }
@@ -114,13 +114,13 @@ crate::sys::recursive!(
     P0,
 );
 
-impl<S, Ret> IntoExBoxSystem<World, Ret> for S
+impl<S, Ret> IntoExclusiveBoxSystem<World, Ret> for S
 where
     S: ExclusiveSystem<World, Ret> + 'static,
 {
-    fn into_ex_box_system(mut self) -> ExBoxSystem<Ret> {
+    fn into_ex_box_system(mut self) -> ExclusiveBoxSystem<Ret> {
         let f = Box::new(move |world: &mut World| unsafe { S::run_ex(&mut self, world) });
 
-        ExBoxSystem { f }
+        ExclusiveBoxSystem { f }
     }
 }
