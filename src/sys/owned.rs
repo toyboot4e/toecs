@@ -41,7 +41,7 @@ pub struct ExclusiveBoxSystem<Ret> {
 
 impl<Ret> fmt::Debug for ExclusiveBoxSystem<Ret> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BoxSystem")
+        write!(f, "ExclusiveBoxSystem")
     }
 }
 
