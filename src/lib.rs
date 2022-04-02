@@ -63,6 +63,7 @@ pub struct World {
 unsafe impl Send for World {}
 unsafe impl Sync for World {}
 
+/// # Resource API
 impl World {
     /// Sets a resource, a unique instance of type `T`. Returns some old value if it's present.
     pub fn set_res<T: Resource>(&mut self, res: T) -> Option<T> {
@@ -119,7 +120,10 @@ impl World {
         assert!(self.set_res(res).is_none());
         ret
     }
+}
 
+/// # Entity / Component API
+impl World {
     /// Checks if we have a component pool for type `T`
     pub fn is_registered<T: Component>(&self) -> bool {
         self.comp.is_registered::<T>()
@@ -239,7 +243,10 @@ impl World {
     pub fn remove_set<C: ComponentSet>(&mut self, ent: Entity) {
         C::remove(ent, self);
     }
+}
 
+/// # System API
+impl World {
     /// # Panics
     /// Panics if the system borrows unregistered data or if the system has self confliction.
     pub fn run<Params, Ret, S: System<Params, Ret>>(&self, mut sys: S) -> Ret {
@@ -284,7 +291,10 @@ impl World {
     ) -> Ret {
         unsafe { sys.run_arg_ex(data, self) }
     }
+}
 
+/// # Misc
+impl World {
     /// Returns a debug display. This is safe because it has exclusive access.
     pub fn display(&mut self) -> WorldDisplay {
         let mut world = World::default();
