@@ -88,15 +88,11 @@ impl World {
     }
 
     /// Tries to get an immutable access to a resource of type `T`
-    /// # Panics
-    /// Panics when breaking the aliaslng rules.
     pub fn maybe_res<T: Resource>(&self) -> Option<Res<T>> {
         self.res.borrow::<T>()
     }
 
     /// Tries to get a mutable access to a resource of type `T`
-    /// # Panics
-    /// Panics when breaking the aliaslng rules.
     pub fn maybe_res_mut<T: Resource>(&self) -> Option<ResMut<T>> {
         self.res.borrow_mut::<T>()
     }
