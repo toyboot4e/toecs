@@ -145,13 +145,13 @@ fn component_pool_map() {
     let e1 = world.ents.alloc();
     let e2 = world.ents.alloc();
 
-    let mut us = world.comp.borrow_mut::<U>().unwrap();
+    let mut us = world.comp.try_borrow_mut::<U>().unwrap();
     assert_eq!(us.insert(e0, U(100)), None);
     assert_eq!(us.insert(e0, U(0)), Some(U(100)));
     assert_eq!(us.insert(e1, U(1)), None);
     assert_eq!(us.insert(e2, U(2)), None);
 
-    let mut is = world.comp.borrow_mut::<I>().unwrap();
+    let mut is = world.comp.try_borrow_mut::<I>().unwrap();
     assert_eq!(is.insert(e0, I(-0)), None);
     assert_eq!(is.insert(e1, I(-1)), None);
     assert_eq!(is.insert(e2, I(-2)), None);
@@ -165,8 +165,8 @@ fn component_pool_map() {
 fn component_safe() {
     let mut comp = ComponentPoolMap::default();
     comp.register::<U>();
-    let _u1 = comp.borrow::<U>().unwrap();
-    let _u2 = comp.borrow::<U>().unwrap();
+    let _u1 = comp.try_borrow::<U>().unwrap();
+    let _u2 = comp.try_borrow::<U>().unwrap();
 }
 
 #[test]
@@ -174,8 +174,8 @@ fn component_safe() {
 fn component_panic() {
     let mut comp = ComponentPoolMap::default();
     comp.register::<U>();
-    let _u1 = comp.borrow_mut::<I>().unwrap();
-    let _u2 = comp.borrow::<I>().unwrap();
+    let _u1 = comp.try_borrow_mut::<I>().unwrap();
+    let _u2 = comp.try_borrow::<I>().unwrap();
 }
 
 #[test]
@@ -187,11 +187,11 @@ fn ignore_dead_entity() {
     world.despawn(dead);
 
     world.insert(dead, I(10));
-    // assert!(world.comp.borrow::<I>().unwrap().as_slice().is_empty());
+    assert!(world.comp.try_borrow::<I>().unwrap().as_slice().is_empty());
 
     world.insert_set(dead, (I(10), U(10)));
-    // assert!(world.comp.borrow::<I>().unwrap().as_slice().is_empty());
-    // assert!(world.comp.borrow::<U>().unwrap().as_slice().is_empty());
+    assert!(world.comp.try_borrow::<I>().unwrap().as_slice().is_empty());
+    assert!(world.comp.try_borrow::<U>().unwrap().as_slice().is_empty());
 
     println!("{:#?}", world.display());
 }

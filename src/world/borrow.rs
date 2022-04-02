@@ -2,10 +2,7 @@
 
 pub use toecs_derive::GatBorrowWorld;
 
-use std::{
-    any::{self, TypeId},
-    fmt,
-};
+use std::{any::TypeId, fmt};
 
 use crate::world::{
     comp::{Comp, CompMut, Component},
@@ -178,12 +175,7 @@ impl<T: Component> GatBorrowWorld for Comp<'_, T> {
 impl<'w, T: Component> BorrowWorld<'w> for GatHack<Comp<'_, T>> {
     type Item = Comp<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
-        w.comp.borrow().unwrap_or_else(|| {
-            panic!(
-                "Tried to borrow component pool of type {} for a system",
-                any::type_name::<T>()
-            )
-        })
+        w.comp.try_borrow().unwrap()
     }
     fn accesses() -> AccessSet {
         AccessSet::single(Access::Comp(TypeId::of::<T>()))
@@ -197,12 +189,7 @@ impl<T: Component> GatBorrowWorld for CompMut<'_, T> {
 impl<'w, T: Component> BorrowWorld<'w> for GatHack<CompMut<'_, T>> {
     type Item = CompMut<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
-        w.comp.borrow_mut().unwrap_or_else(|| {
-            panic!(
-                "Tried to borrow component pool of type {} for a system",
-                any::type_name::<T>()
-            )
-        })
+        w.comp.try_borrow_mut().unwrap()
     }
     fn accesses() -> AccessSet {
         AccessSet::single(Access::CompMut(TypeId::of::<T>()))

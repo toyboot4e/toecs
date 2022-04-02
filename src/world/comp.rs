@@ -15,6 +15,7 @@ use std::{
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
+use thiserror::Error;
 
 use crate::world::{
     ent::Entity,
@@ -25,6 +26,15 @@ use crate::world::{
 pub trait Component: 'static + fmt::Debug + Downcast + Send + Sync {}
 
 impl_downcast!(Component);
+
+/// Resource borrow error type
+#[derive(Error, Debug)]
+pub enum BorrowError {
+    #[error("component of type `{0}` is not registered")]
+    NotRegistered(&'static str),
+    #[error("component pool of type `{0}` is already borrowed")]
+    AlreadyBorrowed(&'static str),
+}
 
 /// SoA storage of components backed by sparse sets
 #[derive(Debug, Default)]
@@ -77,27 +87,41 @@ impl ComponentPoolMap {
     }
 
     /// Tries to get an immutable access to a component pool
-    /// # Panics
-    /// Panics when breaking the aliasing rules.
-    pub fn borrow<T: Component>(&self) -> Option<Comp<T>> {
-        let cell = self.cells.get(&TypeId::of::<T>())?;
-        let borrow = AtomicRef::map(cell.borrow(), |pool| {
+    pub fn try_borrow<T: Component>(&self) -> Result<Comp<T>, BorrowError> {
+        let cell = self
+            .cells
+            .get(&TypeId::of::<T>())
+            .ok_or_else(|| BorrowError::NotRegistered(any::type_name::<T>()))?;
+
+        let inner = cell
+            .try_borrow()
+            .map_err(|_| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
+
+        let borrow = AtomicRef::map(inner, |pool| {
             pool.erased.downcast_ref::<ComponentPool<T>>().unwrap()
         });
-        Some(Comp { borrow })
+
+        Ok(Comp { borrow })
     }
 
     /// Tries to get a mutable access to a component pool
-    /// # Panics
-    /// - Panics breaking the aliasing rules.
-    pub fn borrow_mut<T: Component>(&self) -> Option<CompMut<T>> {
-        let cell = self.cells.get(&TypeId::of::<T>())?;
-        let borrow = AtomicRefMut::map(cell.borrow_mut(), |pool| {
+    pub fn try_borrow_mut<T: Component>(&self) -> Result<CompMut<T>, BorrowError> {
+        let cell = self
+            .cells
+            .get(&TypeId::of::<T>())
+            .ok_or_else(|| BorrowError::NotRegistered(any::type_name::<T>()))?;
+
+        let inner = cell
+            .try_borrow_mut()
+            .map_err(|_| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
+
+        let borrow = AtomicRefMut::map(inner, |pool| {
             pool.erased
                 .downcast_mut::<ComponentPool<T>>()
                 .unwrap_or_else(|| unreachable!())
         });
-        Some(CompMut { borrow })
+
+        Ok(CompMut { borrow })
     }
 
     pub fn get_mut<T: Component>(&mut self) -> Option<&mut ComponentPool<T>> {

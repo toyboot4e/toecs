@@ -193,25 +193,14 @@ impl World {
     /// # Panics
     /// Panics if the component pool is not registered. Panics when breaking the aliaslng rules.
     pub fn comp<T: Component>(&self) -> Comp<T> {
-        self.comp
-            .borrow::<T>()
-            .unwrap_or_else(|| Self::comp_panic::<T>())
+        self.comp.try_borrow::<T>().unwrap()
     }
 
     /// Tries to get a mutable access to a coponent pool of type `Tn`
     /// # Panics
     /// Panics if the component pool is not registered. Panics when breaking the aliaslng rules.
     pub fn comp_mut<T: Component>(&self) -> CompMut<T> {
-        self.comp
-            .borrow_mut::<T>()
-            .unwrap_or_else(|| Self::comp_panic::<T>())
-    }
-
-    fn comp_panic<T: Component>() -> ! {
-        panic!(
-            "Tried to get component pool of type {}, but it was not registered",
-            any::type_name::<T>()
-        )
+        self.comp.try_borrow_mut::<T>().unwrap()
     }
 
     /// Borrows custom type or pre-defined type. Prefer explicit alternative such as
