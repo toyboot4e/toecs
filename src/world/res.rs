@@ -12,6 +12,7 @@ use std::{
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
+use thiserror::Error;
 
 /// Type boundary for resource types
 pub trait Resource: 'static + fmt::Debug + Downcast {}
@@ -19,6 +20,15 @@ pub trait Resource: 'static + fmt::Debug + Downcast {}
 impl_downcast!(Resource);
 
 impl<T: 'static + fmt::Debug> Resource for T {}
+
+/// Resource borrow error type
+#[derive(Error, Debug)]
+pub enum BorrowError {
+    #[error("resource of type `{0}` is not set")]
+    NotFound(&'static str),
+    #[error("resource of type `{0}` is already borrowed")]
+    AlreadyBorrowed(&'static str),
+}
 
 /// Dynamic fields of a `World` backed by an anymap
 #[derive(Debug, Default)]
@@ -59,25 +69,43 @@ impl ResourceMap {
     }
 
     /// Tries to get an immutable access to a resource
-    /// # Panics
-    /// Panics when breaking the aliasing rules.
-    pub fn borrow<T: Resource>(&self) -> Option<Res<T>> {
-        let cell = self.cells.get(&TypeId::of::<T>())?;
-        let borrow = AtomicRef::map(cell.borrow(), |res| res.any.downcast_ref::<T>().unwrap());
-        Some(Res { borrow })
+    pub fn try_borrow<T: Resource>(&self) -> Result<Res<T>, BorrowError> {
+        let cell = self
+            .cells
+            .get(&TypeId::of::<T>())
+            .ok_or_else(|| BorrowError::NotFound(any::type_name::<T>()))?;
+
+        let inner = cell
+            .try_borrow()
+            .map_err(|_| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
+
+        let borrow = AtomicRef::map(inner, |res| {
+            res.any
+                .downcast_ref::<T>()
+                .unwrap_or_else(|| unreachable!())
+        });
+
+        Ok(Res { borrow })
     }
 
     /// Tries to get a mutable access to a resource
-    /// # Panics
-    /// Panics when breaking the aliasing rules.
-    pub fn borrow_mut<T: Resource>(&self) -> Option<ResMut<T>> {
-        let cell = self.cells.get(&TypeId::of::<T>())?;
-        let borrow = AtomicRefMut::map(cell.borrow_mut(), |res| {
+    pub fn try_borrow_mut<T: Resource>(&self) -> Result<ResMut<T>, BorrowError> {
+        let cell = self
+            .cells
+            .get(&TypeId::of::<T>())
+            .ok_or_else(|| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
+
+        let inner = cell
+            .try_borrow_mut()
+            .map_err(|_| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
+
+        let borrow = AtomicRefMut::map(inner, |res| {
             res.any
                 .downcast_mut::<T>()
                 .unwrap_or_else(|| unreachable!())
         });
-        Some(ResMut { borrow })
+
+        Ok(ResMut { borrow })
     }
 
     /// Returns a debug display. This is safe because it has exclusive access.

@@ -94,7 +94,7 @@ macro_rules! reversed2 {
         $macro!($($reversed),+);
     };
 	($macro:tt, [$first_0:tt, $first_1:tt, $($rest_0:tt, $rest_1:tt,)*] $($reversed:tt,)*) => {
-		reversed2!($macro, [$($rest_0, $rest_1,)*] $first_0, $first_1, $($reversed,)*);
+		$crate::world::reversed2!($macro, [$($rest_0, $rest_1,)*] $first_0, $first_1, $($reversed,)*);
 	};
 }
 
@@ -103,13 +103,16 @@ macro_rules! recursive_indexed {
         $macro!($i_first, $first);
     };
     ($macro:path, $i_first:tt, $first:ident, $($i_rest:tt, $rest:ident),*) => {
-        reversed2!($macro, [$i_first, $first, $($i_rest, $rest,)*]);
-        recursive_indexed!($macro, $($i_rest, $rest),*);
+        $crate::world::reversed2!($macro, [$i_first, $first, $($i_rest, $rest,)*]);
+        $crate::world::recursive_indexed!($macro, $($i_rest, $rest),*);
     };
     ($macro:path, [$(($i_many:tt, $many:ident)),+ $(,)?]) => {
-        recursive_indexed!($macro, $($i_many, $many),*);
+        $crate::world::recursive_indexed!($macro, $($i_many, $many),*);
     };
 }
+
+pub(crate) use recursive_indexed;
+pub(crate) use reversed2;
 
 recursive_indexed!(
     impl_component_set,

@@ -23,8 +23,8 @@ fn resource_map() {
 
     // mutably borrow two resources
     {
-        let mut u = res.borrow_mut::<U>().unwrap();
-        let mut i = res.borrow_mut::<I>().unwrap();
+        let mut u = res.try_borrow_mut::<U>().unwrap();
+        let mut i = res.try_borrow_mut::<I>().unwrap();
         u.0 += 5;
         i.0 += 5;
         assert_eq!(u.0, 30 + 5);
@@ -41,16 +41,16 @@ fn resource_map() {
 fn resource_panic() {
     let mut res = ResourceMap::default();
     res.insert(U(0));
-    let _u1 = res.borrow_mut::<U>().unwrap();
-    let _u2 = res.borrow::<U>().unwrap();
+    let _u1 = res.try_borrow_mut::<U>().unwrap();
+    let _u2 = res.try_borrow::<U>().unwrap();
 }
 
 #[test]
 fn resource_safe() {
     let mut res = ResourceMap::default();
     res.insert(U(0));
-    let _u1 = res.borrow::<U>().unwrap();
-    let _u2 = res.borrow::<U>().unwrap();
+    let _u1 = res.try_borrow::<U>().unwrap();
+    let _u2 = res.try_borrow::<U>().unwrap();
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn resource_system() {
     unsafe {
         system.run(&world);
     }
-    assert_eq!(*world.res.borrow::<I>().unwrap(), I(10 + 30));
+    assert_eq!(*world.res.try_borrow::<I>().unwrap(), I(10 + 30));
 }
 
 #[test]

@@ -150,12 +150,7 @@ impl<T: Resource> GatBorrowWorld for Res<'_, T> {
 impl<'w, T: Resource> BorrowWorld<'w> for GatHack<Res<'_, T>> {
     type Item = Res<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
-        w.res.borrow().unwrap_or_else(|| {
-            panic!(
-                "Tried to borrow non-existing resource of type {} for a system",
-                any::type_name::<T>()
-            )
-        })
+        w.res.try_borrow().unwrap()
     }
     fn accesses() -> AccessSet {
         AccessSet::single(Access::Res(TypeId::of::<T>()))
@@ -169,12 +164,7 @@ impl<T: Resource> GatBorrowWorld for ResMut<'_, T> {
 impl<'w, T: Resource> BorrowWorld<'w> for GatHack<ResMut<'_, T>> {
     type Item = ResMut<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
-        w.res.borrow_mut().unwrap_or_else(|| {
-            panic!(
-                "Tried to borrow non-existing resource of type {} for a system",
-                any::type_name::<T>()
-            )
-        })
+        w.res.try_borrow_mut().unwrap()
     }
     fn accesses() -> AccessSet {
         AccessSet::single(Access::ResMut(TypeId::of::<T>()))

@@ -5,6 +5,7 @@ Toy ECS based on sparse sets
 #![feature(trace_macros)]
 
 pub mod app;
+pub mod call;
 pub mod cmd;
 pub mod query;
 pub mod sys;
@@ -38,11 +39,7 @@ macro_rules! run_seq_ex {
 	}};
 }
 
-use std::{
-    any::{self, TypeId},
-    cell::RefCell,
-    fmt, mem,
-};
+use std::{any::TypeId, cell::RefCell, fmt, mem};
 
 use crate::{
     sys::System,
@@ -50,7 +47,7 @@ use crate::{
         borrow,
         comp::{Comp, CompMut, Component, ComponentPoolMap},
         ent::{Entity, EntityPool},
-        res::{Res, ResMut, Resource, ResourceMap},
+        res::{self, Res, ResMut, Resource, ResourceMap},
         ComponentSet, ResourceSet,
     },
 };
@@ -88,36 +85,27 @@ impl World {
     }
 
     /// Tries to get an immutable access to a resource of type `T`
-    pub fn maybe_res<T: Resource>(&self) -> Option<Res<T>> {
-        self.res.borrow::<T>()
+    pub fn try_res<T: Resource>(&self) -> Result<Res<T>, res::BorrowError> {
+        self.res.try_borrow::<T>()
     }
 
     /// Tries to get a mutable access to a resource of type `T`
-    pub fn maybe_res_mut<T: Resource>(&self) -> Option<ResMut<T>> {
-        self.res.borrow_mut::<T>()
-    }
-
-    fn resource_panic<T: Resource>() -> ! {
-        panic!(
-            "Tried to get resource of type {}, but it was not present",
-            any::type_name::<T>()
-        )
+    pub fn try_res_mut<T: Resource>(&self) -> Result<ResMut<T>, res::BorrowError> {
+        self.res.try_borrow_mut::<T>()
     }
 
     /// Tries to get an immutable access to a resource of type `T`
     /// # Panics
     /// Panics when breaking the aliaslng rules. Panics when the resource is not set.
     pub fn res<T: Resource>(&self) -> Res<T> {
-        self.maybe_res::<T>()
-            .unwrap_or_else(|| Self::resource_panic::<T>())
+        self.res.try_borrow::<T>().unwrap()
     }
 
     /// Tries to get a mutable access to a resource of type `T`
     /// # Panics
     /// Panics when breaking the aliaslng rules. Panics when the resource is not set.
     pub fn res_mut<T: Resource>(&self) -> ResMut<T> {
-        self.maybe_res_mut::<T>()
-            .unwrap_or_else(|| Self::resource_panic::<T>())
+        self.res.try_borrow_mut::<T>().unwrap()
     }
 
     /// Runs a procedure that takes `&mut T` and `&mut World` temporarily taking `T` from the world
@@ -126,18 +114,9 @@ impl World {
         f: impl FnOnce(&mut T, &mut World) -> Ret,
     ) -> Ret {
         // take the resource temporarily
-        let mut res = self.take_res::<T>().unwrap_or_else(|| {
-            panic!(
-                "res_scope: unable to get resource of type {}",
-                any::type_name::<T>()
-            );
-        });
-
+        let mut res = self.take_res::<T>().unwrap();
         let ret = f(&mut res, self);
-
-        // reset the resource
         assert!(self.set_res(res).is_none());
-
         ret
     }
 
