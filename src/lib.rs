@@ -271,8 +271,8 @@ impl World {
     /// Panics if the system borrows unregistered data or if the system has self confliction.
     pub fn run_arg<Data, Params, Ret, S: sys::ArgSystem<Data, Params, Ret>>(
         &self,
-        data: Data,
         mut sys: S,
+        data: Data,
     ) -> Ret {
         debug_assert!(
             !sys.accesses().self_conflict(),
@@ -286,8 +286,8 @@ impl World {
     /// Panics if the system borrows unregistered data or if the system has self confliction.
     pub fn run_arg_ex<Data, Params, Ret, S: sys::ExclusiveArgSystem<Data, Params, Ret>>(
         &mut self,
-        data: Data,
         mut sys: S,
+        data: Data,
     ) -> Ret {
         unsafe { sys.run_arg_ex(data, self) }
     }

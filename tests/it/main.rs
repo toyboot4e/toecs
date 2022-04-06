@@ -240,7 +240,7 @@ fn run_with_args() {
         arg
     }
 
-    assert_eq!(world.run_arg(10u32, sys), 10);
+    assert_eq!(world.run_arg(sys, 10u32), 10);
 }
 
 #[test]
