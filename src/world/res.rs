@@ -1,6 +1,6 @@
-/*!
-Resources: virtually `World` fields backed by an anymap
-*/
+//! Resources: virtually `World` fields backed by an anymap
+//!
+//! TODO: Separate non-sync/non-send resources
 
 use std::{
     any::{self, TypeId},

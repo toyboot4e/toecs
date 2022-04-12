@@ -1,6 +1,4 @@
-/*!
-Systems: procedures that operate on the [`World`]
-*/
+//! Systems: procedures that operate on the [`World`]
 
 pub mod erased;
 pub mod owned;

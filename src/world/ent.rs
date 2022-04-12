@@ -1,6 +1,4 @@
-/*!
-Entity: ID associated with a set of components
-*/
+//! Entity: ID associated with a set of components
 
 use std::{
     fmt, slice,

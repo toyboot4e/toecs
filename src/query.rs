@@ -1,6 +1,4 @@
-/*!
-Queries: component iteration
-*/
+//! Queries: component iteration
 
 use std::{marker::PhantomData, mem::MaybeUninit};
 

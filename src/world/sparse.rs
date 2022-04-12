@@ -1,9 +1,6 @@
-/*!
-Internal [`SparseSet`] utilities
-
-This module is public, but just for the intenral documentation. See also `EntityPool` as a sparse
-index allocator.
-*/
+//! Internal [`SparseSet`] utilities
+//!
+//! This module is public, but just for the intenral documentation. See also `EntityPool` as a sparse
 
 use std::{iter, num::NonZeroU32, slice};
 

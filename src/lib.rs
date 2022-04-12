@@ -1,6 +1,4 @@
-/*!
-Toy ECS based on sparse sets
-*/
+//! Toy ECS based on sparse sets
 
 #![feature(trace_macros)]
 
