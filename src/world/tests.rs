@@ -317,16 +317,20 @@ fn commands() {
     let e1 = world.reserve_atomic();
 
     use crate::cmd;
-    let mut cmds = cmd::CommandQueue::default();
 
+    let mut cmds = cmd::CommandQueue::default();
     cmds.push(cmd::Insert {
         entity: e1,
         comp: (U(10), I(10)),
     });
 
-    cmds.push(cmd::Spawn {
-        comp: (U(20), I(20)),
-    });
+    {
+        let entity = world.reserve_atomic();
+        cmds.push(cmd::Insert {
+            entity,
+            comp: (U(20), I(20)),
+        });
+    }
 
     world.synchronize();
     cmds.apply(&mut world);

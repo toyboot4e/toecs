@@ -20,6 +20,7 @@
 use std::{fmt, marker::PhantomData};
 
 use crate::{
+    sys::owned::{ExclusiveBoxSystem, IntoExclusiveBoxSystem},
     world::{ent::Entity, ComponentSet},
     World,
 };
@@ -150,22 +151,6 @@ where
     }
 }
 
-/// Spanws an [`Entity`] with components onto [`World`]
-#[derive(Debug)]
-pub struct Spawn<T> {
-    pub comp: T,
-}
-
-impl<T> Spawn<T> {
-    pub fn new(components: T) -> Self {
-        Self { comp: components }
-    }
-}
-
-impl<T: ComponentSet> Command for Spawn<T> {
-    fn write(self, world: &mut World) {
-        let entity = world.spawn_empty();
-        world.insert_set(entity, self.comp);
     }
 }
 

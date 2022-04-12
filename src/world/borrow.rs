@@ -6,6 +6,7 @@ use std::{any::TypeId, fmt};
 
 use crate::world::{
     comp::{Comp, CompMut, Component},
+    ent::EntityPool,
     res::{Res, ResMut, Resource},
     World,
 };
@@ -45,6 +46,8 @@ impl fmt::Display for MergeError {
 }
 
 impl AccessSet {
+    pub const EMPTY: Self = AccessSet(Vec::new());
+
     pub fn new(set: Vec<Access>) -> Self {
         Self(set)
     }
@@ -139,6 +142,20 @@ pub type BorrowItem<'w, T> = <Borrow<T> as BorrowWorld<'w>>::Item;
 
 /// (Internal) Hack for emulating GAT on stable Rust
 pub struct GatHack<T>(::core::marker::PhantomData<T>);
+
+impl GatBorrowWorld for &'_ EntityPool {
+    type Borrow = GatHack<Self>;
+}
+
+impl<'w> BorrowWorld<'w> for GatHack<&'_ EntityPool> {
+    type Item = &'w EntityPool;
+    unsafe fn borrow(w: &'w World) -> Self::Item {
+        &w.ents
+    }
+    fn accesses() -> AccessSet {
+        AccessSet::EMPTY
+    }
+}
 
 impl<T: Resource> GatBorrowWorld for Res<'_, T> {
     type Borrow = GatHack<Self>;
