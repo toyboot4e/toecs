@@ -185,7 +185,21 @@ impl EntityPool {
             gen: ent.generation(),
             next_free: self.first_free,
         };
-        self.dense.remove(dense.to_usize());
+
+        // update the dense array while keeping the sparse indices valid
+        self.dense.swap_remove(dense.to_usize());
+        if let Some(sparse) = self.dense.get(dense.to_usize()).map(|e| e.0) {
+            match self.sparse[sparse.to_usize()] {
+                Entry::ToDense(target) => {
+                    self.sparse[sparse.to_usize()] =
+                        Entry::ToDense(DenseIndex::new(dense.raw(), target.generation()));
+                }
+                Entry::Empty { .. } => {
+                    panic!("bug: dealloc");
+                }
+            }
+        }
+
         self.first_free = Some(RawSparseIndex::from_usize(slot));
         self.n_free += 1;
 
@@ -207,7 +221,7 @@ impl EntityPool {
 
             let gen = match self.sparse[sparse.to_usize()] {
                 Entry::ToDense(_) => unreachable!("free slot bug (atomic)"),
-                Entry::Empty { gen, .. } => gen,
+                Entry::Empty { gen, .. } => gen.increment(),
             };
 
             Entity(SparseIndex::new(sparse, gen))

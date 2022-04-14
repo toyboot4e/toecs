@@ -167,9 +167,9 @@ impl World {
         self.ents.synchronize()
     }
 
-    /// Despawns an [`Entity`]. Returns if it was an active entity.
+    /// Despawns an [`Entity`]. Returns true if it is an existing entity.
     pub fn despawn(&mut self, ent: Entity) -> bool {
-        if !self.ents.dealloc(ent) {
+        if !self.ents.contains(ent) {
             // old entity
             return false;
         }
