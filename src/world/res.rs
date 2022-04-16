@@ -93,7 +93,7 @@ impl ResourceMap {
         let cell = self
             .cells
             .get(&TypeId::of::<T>())
-            .ok_or_else(|| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
+            .ok_or_else(|| BorrowError::NotFound(any::type_name::<T>()))?;
 
         let inner = cell
             .try_borrow_mut()
