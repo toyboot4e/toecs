@@ -243,12 +243,14 @@ impl EntityPool {
         );
 
         for i in 0..nth {
-            sparse = match self.sparse[i] {
+            sparse = match self.sparse[sparse.to_usize()] {
                 Entry::Empty {
                     next_free: Some(free_index),
                     ..
                 } => free_index,
-                _ => unreachable!("free slot bug: free slot at `{}` is actually filled", i),
+                _ => unreachable!(
+                    "free slot bug: {i}th free slot at `{sparse:?}` is actually filled",
+                ),
             }
         }
 
