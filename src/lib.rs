@@ -113,7 +113,12 @@ impl World {
         f: impl FnOnce(&mut T, &mut World) -> Ret,
     ) -> Ret {
         // take the resource temporarily
-        let mut res = self.take_res::<T>().unwrap();
+        let mut res = self.take_res::<T>().unwrap_or_else(|| {
+            panic!(
+                "Unable to find resource of type {}",
+                ::core::any::type_name::<T>()
+            )
+        });
         let ret = f(&mut res, self);
         assert!(self.set_res(res).is_none());
         ret
