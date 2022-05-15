@@ -21,7 +21,7 @@ use std::{fmt, marker::PhantomData};
 
 use crate::{
     sys::owned::{ExclusiveBoxSystem, IntoExclusiveBoxSystem},
-    world::{ent::Entity, ComponentSet},
+    world::{ent::Entity, res::Resource, ComponentSet},
     World,
 };
 
@@ -210,22 +210,33 @@ impl<T: ComponentSet> Command for Remove<T> {
 }
 
 // TODO: `Resource` must be send and sync
-// pub struct SetResource<R: Resource> {
-//     pub res: R,
-// }
-//
-// impl<R: Resource> Command for SetResource<R> {
-//     fn write(self, world: &mut World) {
-//         world.set_res(self.res);
-//     }
-// }
-//
-// pub struct TakeResource<R: Resource> {
-//     pub phantom: PhantomData<R>,
-// }
-//
-// impl<R: Resource> Command for TakeResource<R> {
-//     fn write(self, world: &mut World) {
-//         let _ = world.take_res::<R>();
-//     }
-// }
+
+pub fn set<R: Resource>(res: R) -> Set<R> {
+    Set { res }
+}
+
+/// Sets a new resource
+pub struct Set<R: Resource> {
+    pub res: R,
+}
+
+impl<R: Resource + Send + Sync> Command for Set<R> {
+    fn write(self, world: &mut World) {
+        world.set_res(self.res);
+    }
+}
+
+pub fn take<R: Resource>() -> Take<R> {
+    Take { _ty: PhantomData }
+}
+
+/// Takes an existing resource
+pub struct Take<R: Resource> {
+    pub _ty: PhantomData<R>,
+}
+
+impl<R: Resource + Send + Sync> Command for Take<R> {
+    fn write(self, world: &mut World) {
+        let _ = world.take_res::<R>();
+    }
+}
