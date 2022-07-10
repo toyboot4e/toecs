@@ -270,6 +270,25 @@ impl World {
     }
 
     /// Run a system with user argumewnt
+    ///
+    /// # Example
+    ///
+    /// `run_arg` considers the first argument of a system as user argument and all the others as
+    /// auto-fetched types.
+    ///
+    /// ```
+    /// use toecs::prelude::*;
+    ///
+    /// fn system(user_arg: (u32, i32), _res1: Res<u32>, _res2: Res<i32>) {
+    ///     println!("{:?}", user_arg);
+    /// }
+    ///
+    /// let mut world = World::default();
+    /// world.set_res_set((10u32, 20i32));
+    /// world.run_arg(system, (30, 40));
+    ///
+    /// ```
+    ///
     /// # Panics
     /// Panics if the system borrows unregistered data or if the system has self confliction.
     pub fn run_arg<Data, Params, Ret, S: sys::ArgSystem<Data, Params, Ret>>(
@@ -285,7 +304,13 @@ impl World {
     }
 
     /// Run an exclusive system with user argumewnt
+    ///
+    /// # Example
+    ///
+    /// See [`Self::run_arg`].
+    ///
     /// # Panics
+    ///
     /// Panics if the system borrows unregistered data or if the system has self confliction.
     pub fn run_arg_ex<Data, Params, Ret, S: sys::ExclusiveArgSystem<Data, Params, Ret>>(
         &mut self,
