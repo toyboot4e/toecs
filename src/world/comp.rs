@@ -37,15 +37,18 @@ pub enum BorrowError {
 /// SoA storage of components backed by sparse sets
 #[derive(Debug, Default)]
 pub struct ComponentPoolMap {
-    cells: FxHashMap<TypeId, AtomicRefCell<ErasedPool>>,
+    cells: FxHashMap<TypeId, AtomicRefCell<AnyComponentPool>>,
 }
 
 #[derive(Debug)]
-struct ErasedPool {
-    /// Type name string for debug print
+pub(crate) struct AnyComponentPool {
+    /// For serde support
     #[allow(unused)]
-    of_type: &'static str,
-    erased: Box<dyn ErasedComponentPool>,
+    pub(crate) of_type: &'static str,
+    /// For serde support
+    #[allow(unused)]
+    pub(crate) type_id: TypeId,
+    any: Box<dyn ErasedComponentPool>,
 }
 
 /// Upcast of `ComponentPool<T>`s
@@ -75,9 +78,10 @@ impl ComponentPoolMap {
             return true;
         }
 
-        let pool = ErasedPool {
-            erased: Box::new(ComponentPool::<T>::default()),
+        let pool = AnyComponentPool {
             of_type: any::type_name::<T>(),
+            type_id: TypeId::of::<T>(),
+            any: Box::new(ComponentPool::<T>::default()),
         };
 
         self.cells.insert(ty, AtomicRefCell::new(pool));
@@ -96,7 +100,7 @@ impl ComponentPoolMap {
             .map_err(|_| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
 
         let borrow = AtomicRef::map(inner, |pool| {
-            pool.erased.downcast_ref::<ComponentPool<T>>().unwrap()
+            pool.any.downcast_ref::<ComponentPool<T>>().unwrap()
         });
 
         Ok(Comp { borrow })
@@ -114,7 +118,7 @@ impl ComponentPoolMap {
             .map_err(|_| BorrowError::AlreadyBorrowed(any::type_name::<T>()))?;
 
         let borrow = AtomicRefMut::map(inner, |pool| {
-            pool.erased
+            pool.any
                 .downcast_mut::<ComponentPool<T>>()
                 .unwrap_or_else(|| unreachable!())
         });
@@ -124,13 +128,16 @@ impl ComponentPoolMap {
 
     pub fn get_mut<T: Component>(&mut self) -> Option<&mut ComponentPool<T>> {
         let cell = self.cells.get_mut(&TypeId::of::<T>())?;
-        Some(cell.get_mut().erased.downcast_mut().unwrap())
+        Some(cell.get_mut().any.downcast_mut().unwrap())
     }
 
-    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut dyn ErasedComponentPool> {
-        self.cells
-            .values_mut()
-            .map(|cell| &mut *cell.get_mut().erased)
+    pub(crate) fn any_iter(&self) -> impl Iterator<Item = AtomicRef<AnyComponentPool>> {
+        self.cells.values().map(|cell| cell.borrow())
+        // .map(|cell| AtomicRef::map(cell.borrow(), |x| &*x.any))
+    }
+
+    pub(crate) fn erased_iter_mut(&mut self) -> impl Iterator<Item = &mut dyn ErasedComponentPool> {
+        self.cells.values_mut().map(|cell| &mut *cell.get_mut().any)
     }
 
     /// Returns a debug display. This is safe because it has exclusive access.
@@ -166,7 +173,7 @@ impl<'r> fmt::Debug for ComponentPoolMapDisplay<'r> {
             .values_mut()
             .map(|cell| cell.get_mut())
             .for_each(|pool| {
-                map.entry(&pool.of_type, &pool.erased);
+                map.entry(&pool.of_type, &pool.any);
             });
 
         map.finish()

@@ -4,7 +4,7 @@
 
 use std::{
     any::{self, TypeId},
-    borrow,
+    borrow::self,
     cell::RefCell,
     fmt, mem, ops,
 };
@@ -37,10 +37,13 @@ pub struct ResourceMap {
 }
 
 #[derive(Debug)]
-struct AnyResource {
-    /// Type name string for debug print
+pub(crate) struct AnyResource {
+    /// For serde support
     #[allow(unused)]
-    of_type: &'static str,
+    pub(crate) of_type: &'static str,
+    /// For serde support
+    #[allow(unused)]
+    pub(crate) type_id: TypeId,
     any: Box<dyn Resource>,
 }
 
@@ -48,6 +51,7 @@ impl ResourceMap {
     pub fn insert<T: Resource>(&mut self, x: T) -> Option<T> {
         let new_cell = AtomicRefCell::new(AnyResource {
             any: Box::new(x),
+            type_id: TypeId::of::<T>(),
             of_type: any::type_name::<T>(),
         });
         let old_cell = self.cells.insert(TypeId::of::<T>(), new_cell)?;
@@ -116,6 +120,10 @@ impl ResourceMap {
             res: RefCell::new(res),
             original_res: self,
         }
+    }
+
+    pub(crate) fn any_iter(&self) -> impl Iterator<Item = AtomicRef<AnyResource>> {
+        self.cells.values().map(|cell| cell.borrow())
     }
 }
 

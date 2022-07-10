@@ -180,7 +180,7 @@ impl World {
         }
 
         self.comp
-            .iter_mut()
+            .erased_iter_mut()
             .for_each(|comp| comp.erased_remove(ent));
 
         self.ents.dealloc(ent);
