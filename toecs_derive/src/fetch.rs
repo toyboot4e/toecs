@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
 use syn::*;
 
-pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
+pub fn impl_auto_fetch(ast: DeriveInput) -> TokenStream2 {
     let ty_ident = &ast.ident;
 
     let data = match &ast.data {
@@ -27,16 +27,16 @@ pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
         pub struct #gat_hack<T>(::core::marker::PhantomData<T>);
 
         impl<'w> AutoFetch for #ty_ident<'w> {
-            type Borrow = #gat_hack<Self>;
+            type Fetch = #gat_hack<Self>;
         }
 
         impl<'w> AutoFetchImpl<'w> for #gat_hack<#ty_ident<'_>> {
             type Item = #ty_ident<'w>;
 
-            unsafe fn borrow(w: &'w World) -> Self::Item {
+            unsafe fn fetch(w: &'w World) -> Self::Item {
                 #ty_ident {
                     #(
-                        #field_idents: <<#field_tys as AutoFetch>::Borrow as AutoFetchImpl<'w>>::borrow(w),
+                        #field_idents: <<#field_tys as AutoFetch>::Fetch as AutoFetchImpl<'w>>::fetch(w),
                     )*
                 }
             }
@@ -44,7 +44,7 @@ pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
             fn accesses() -> AccessSet {
                 AccessSet::concat([
                     #(
-                        <<#field_tys as AutoFetch>::Borrow as AutoFetchImpl<'w>>::accesses(),
+                        <<#field_tys as AutoFetch>::Fetch as AutoFetchImpl<'w>>::accesses(),
                     )*
                 ].iter())
             }

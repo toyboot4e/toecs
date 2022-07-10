@@ -1,4 +1,4 @@
-mod borrow;
+mod fetch;
 mod component;
 mod component_set;
 
@@ -29,5 +29,5 @@ pub fn component_set(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(AutoFetch)]
 pub fn auto_fetch(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
-    TokenStream::from(borrow::impl_gat_borrow_world(ast))
+    TokenStream::from(fetch::impl_auto_fetch(ast))
 }

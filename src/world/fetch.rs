@@ -1,4 +1,4 @@
-//! Borrow
+//! Fetch
 
 pub use toecs_derive::AutoFetch;
 
@@ -117,42 +117,46 @@ impl AccessSet {
 ///
 /// ```
 /// use toecs::prelude::*;
+///
+/// #[derive(Debug, Component)]
+/// struct CustomComponent;
+///
 /// /// Type that are composed of `AutoFetch` types can also be an `AutoFetch`
 /// #[derive(AutoFetch, Debug)]
 /// pub struct CustomFetch<'w> {
-///     u: Res<'w, usize>,
-///     i: Comp<'w, isize>,
+///     r: Res<'w, usize>,
+///     c: Comp<'w, CustomComponent>,
 /// }
 /// ```
 pub trait AutoFetch {
-    /// Emulates `Item<'w>` with `<AutoFetch::Borrow as AutoFetchImpl<'w>>::Item`
-    type Borrow: for<'a> AutoFetchImpl<'a>;
+    /// Emulates `Item<'w>` with `<AutoFetch::Fetch as AutoFetchImpl<'w>>::Item`
+    type Fetch: for<'a> AutoFetchImpl<'a>;
 }
 
-/// (Internal) Type specified in `AutoFetch::Borrow` that implements actual borrow
+/// (Internal) Type specified in `AutoFetch::Fetch` that implements actual fetch
 pub trait AutoFetchImpl<'w> {
     type Item;
-    /// Borrows some data from the world
+    /// Fetches some data from the world
     /// # Panics
     /// - Panics when breaking the aliasing rules
-    unsafe fn borrow(w: &'w World) -> Self::Item;
+    unsafe fn fetch(w: &'w World) -> Self::Item;
     fn accesses() -> AccessSet;
 }
 
 // shorthand for associated types
-pub type Borrow<T> = <T as AutoFetch>::Borrow;
-pub type BorrowItem<'w, T> = <Borrow<T> as AutoFetchImpl<'w>>::Item;
+pub type Fetch<T> = <T as AutoFetch>::Fetch;
+pub type FetchItem<'w, T> = <Fetch<T> as AutoFetchImpl<'w>>::Item;
 
 /// (Internal) Hack for emulating GAT on stable Rust
 pub struct GatHack<T>(::core::marker::PhantomData<T>);
 
 impl AutoFetch for &'_ EntityPool {
-    type Borrow = GatHack<Self>;
+    type Fetch = GatHack<Self>;
 }
 
 impl<'w> AutoFetchImpl<'w> for GatHack<&'_ EntityPool> {
     type Item = &'w EntityPool;
-    unsafe fn borrow(w: &'w World) -> Self::Item {
+    unsafe fn fetch(w: &'w World) -> Self::Item {
         &w.ents
     }
     fn accesses() -> AccessSet {
@@ -161,12 +165,12 @@ impl<'w> AutoFetchImpl<'w> for GatHack<&'_ EntityPool> {
 }
 
 impl<T: Resource> AutoFetch for Res<'_, T> {
-    type Borrow = GatHack<Self>;
+    type Fetch = GatHack<Self>;
 }
 
 impl<'w, T: Resource> AutoFetchImpl<'w> for GatHack<Res<'_, T>> {
     type Item = Res<'w, T>;
-    unsafe fn borrow(w: &'w World) -> Self::Item {
+    unsafe fn fetch(w: &'w World) -> Self::Item {
         w.res.try_borrow().unwrap()
     }
     fn accesses() -> AccessSet {
@@ -175,12 +179,12 @@ impl<'w, T: Resource> AutoFetchImpl<'w> for GatHack<Res<'_, T>> {
 }
 
 impl<T: Resource> AutoFetch for ResMut<'_, T> {
-    type Borrow = GatHack<Self>;
+    type Fetch = GatHack<Self>;
 }
 
 impl<'w, T: Resource> AutoFetchImpl<'w> for GatHack<ResMut<'_, T>> {
     type Item = ResMut<'w, T>;
-    unsafe fn borrow(w: &'w World) -> Self::Item {
+    unsafe fn fetch(w: &'w World) -> Self::Item {
         w.res.try_borrow_mut().unwrap()
     }
     fn accesses() -> AccessSet {
@@ -189,12 +193,12 @@ impl<'w, T: Resource> AutoFetchImpl<'w> for GatHack<ResMut<'_, T>> {
 }
 
 impl<T: Component> AutoFetch for Comp<'_, T> {
-    type Borrow = GatHack<Self>;
+    type Fetch = GatHack<Self>;
 }
 
 impl<'w, T: Component> AutoFetchImpl<'w> for GatHack<Comp<'_, T>> {
     type Item = Comp<'w, T>;
-    unsafe fn borrow(w: &'w World) -> Self::Item {
+    unsafe fn fetch(w: &'w World) -> Self::Item {
         w.comp.try_borrow().unwrap()
     }
     fn accesses() -> AccessSet {
@@ -203,12 +207,12 @@ impl<'w, T: Component> AutoFetchImpl<'w> for GatHack<Comp<'_, T>> {
 }
 
 impl<T: Component> AutoFetch for CompMut<'_, T> {
-    type Borrow = GatHack<Self>;
+    type Fetch = GatHack<Self>;
 }
 
 impl<'w, T: Component> AutoFetchImpl<'w> for GatHack<CompMut<'_, T>> {
     type Item = CompMut<'w, T>;
-    unsafe fn borrow(w: &'w World) -> Self::Item {
+    unsafe fn fetch(w: &'w World) -> Self::Item {
         w.comp.try_borrow_mut().unwrap()
     }
     fn accesses() -> AccessSet {
@@ -216,13 +220,13 @@ impl<'w, T: Component> AutoFetchImpl<'w> for GatHack<CompMut<'_, T>> {
     }
 }
 
-macro_rules! impl_borrow_tuple {
+macro_rules! impl_fetch_tuple {
     ($($xs:ident),+ $(,)?) => {
         impl<$($xs,)+> AutoFetch for ($($xs,)+)
         where
             $($xs: AutoFetch,)+
         {
-            type Borrow = ($($xs::Borrow,)+);
+            type Fetch = ($($xs::Fetch,)+);
         }
 
         impl<'w, $($xs,)+> AutoFetchImpl<'w> for ($($xs,)+)
@@ -231,8 +235,8 @@ macro_rules! impl_borrow_tuple {
         {
             type Item = ($($xs::Item,)+);
 
-            unsafe fn borrow(w: &'w World) -> Self::Item {
-                ($($xs::borrow(w),)+)
+            unsafe fn fetch(w: &'w World) -> Self::Item {
+                ($($xs::fetch(w),)+)
             }
 
             fn accesses() -> AccessSet {
@@ -255,7 +259,7 @@ macro_rules! recursive {
 }
 
 recursive!(
-    impl_borrow_tuple,
+    impl_fetch_tuple,
     P15,
     P14,
     P13,

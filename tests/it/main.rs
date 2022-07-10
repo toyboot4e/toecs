@@ -198,16 +198,16 @@ fn borrow_type_inference() {
     world.register_set::<(U, I)>();
 
     {
-        let _: Res<U> = world.borrow();
-        let _: ResMut<I> = world.borrow();
+        let _: Res<U> = world.fetch();
+        let _: ResMut<I> = world.fetch();
     }
 
     {
-        let _: Comp<U> = world.borrow();
-        let _: CompMut<I> = world.borrow();
+        let _: Comp<U> = world.fetch();
+        let _: CompMut<I> = world.fetch();
     }
 
-    let (_, _, _, _): (Res<U>, Res<I>, Comp<U>, CompMut<I>) = world.borrow();
+    let (_, _, _, _): (Res<U>, Res<I>, Comp<U>, CompMut<I>) = world.fetch();
 }
 
 #[test]

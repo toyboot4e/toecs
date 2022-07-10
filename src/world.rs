@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-pub mod borrow;
+pub mod fetch;
 pub mod comp;
 pub mod ent;
 pub mod res;

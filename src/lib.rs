@@ -14,7 +14,7 @@ pub mod prelude {
         query::Iter,
         sys::erased::SystemResult,
         world::{
-            borrow::{AccessSet, AutoFetchImpl, AutoFetch},
+            fetch::{AccessSet, AutoFetchImpl, AutoFetch},
             comp::{Comp, CompMut, Component, ComponentPool, ComponentPoolMap},
             ent::Entity,
             res::{Res, ResMut},
@@ -42,7 +42,7 @@ use std::{any::TypeId, cell::RefCell, fmt, mem};
 use crate::{
     sys::System,
     world::{
-        borrow,
+        fetch,
         comp::{Comp, CompMut, Component, ComponentPoolMap},
         ent::{Entity, EntityPool},
         res::{self, Res, ResMut, Resource, ResourceMap},
@@ -210,13 +210,13 @@ impl World {
         self.comp.try_borrow_mut::<T>().unwrap()
     }
 
-    /// Borrows custom type or pre-defined type. Prefer explicit alternative such as
-    /// [`res`](Self::res) when doable.
-    pub fn borrow<'w, T: borrow::AutoFetch>(&'w self) -> T
+    /// Fetches some data. This is type-inference friendly, but prefer explicit alternative such as
+    /// [`comp`](Self::comp) or /// [`res`](Self::res) when available.
+    pub fn fetch<'w, T: fetch::AutoFetch>(&'w self) -> T
     where
-        T::Borrow: borrow::AutoFetchImpl<'w, Item = T>,
+        T::Fetch: fetch::AutoFetchImpl<'w, Item = T>,
     {
-        unsafe { <<T as borrow::AutoFetch>::Borrow as borrow::AutoFetchImpl>::borrow(self) }
+        unsafe { <<T as fetch::AutoFetch>::Fetch as fetch::AutoFetchImpl>::fetch(self) }
     }
 
     /// Inserts a component to an entity. Returns some old component if it is present.

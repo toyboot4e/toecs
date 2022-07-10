@@ -16,7 +16,7 @@ struct U(u32);
 struct I(u32);
 
 #[derive(AutoFetch)]
-pub struct CustomBorrow<'w> {
+pub struct CustomFetch<'w> {
     _res_u: Res<'w, U>,
     _res_i: ResMut<'w, I>,
     _comp_u: Comp<'w, U>,
@@ -26,8 +26,8 @@ pub struct CustomBorrow<'w> {
 #[test]
 fn custom_borrow_access_set() {
     assert_eq!(
-        <<CustomBorrow as AutoFetch>::Borrow as AutoFetchImpl>::accesses(),
-            <<(Res<U>,ResMut<I>,Comp<U>,CompMut<I>) as AutoFetch>::Borrow as AutoFetchImpl>::accesses(),
+        <<CustomFetch as AutoFetch>::Fetch as AutoFetchImpl>::accesses(),
+            <<(Res<U>,ResMut<I>,Comp<U>,CompMut<I>) as AutoFetch>::Fetch as AutoFetchImpl>::accesses(),
     );
 
     let mut world = World::default();
@@ -36,7 +36,7 @@ fn custom_borrow_access_set() {
     world.set_res_set((U(10), I(10)));
     world.spawn((U(20), I(20)));
 
-    fn test_custom_borrow(_c: CustomBorrow) {
+    fn test_custom_borrow(_c: CustomFetch) {
         //
     }
 
@@ -56,8 +56,8 @@ fn custom_component_set_derive() {
     world.register_set::<(U, I)>();
     let _entity = world.spawn(CustomComponentSet { u: U(10), i: I(20) });
 
-    let u = world.borrow::<Comp<U>>();
+    let u = world.fetch::<Comp<U>>();
     assert_eq!(u.as_slice().len(), 1);
-    let i = world.borrow::<Comp<I>>();
+    let i = world.fetch::<Comp<I>>();
     assert_eq!(i.as_slice().len(), 1);
 }

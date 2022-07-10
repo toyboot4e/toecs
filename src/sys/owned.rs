@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::{
     sys::{AccessSet, ArgSystem, ExclusiveArgSystem, ExclusiveSystem, System},
-    world::borrow::AutoFetch,
+    world::fetch::AutoFetch,
     World,
 };
 

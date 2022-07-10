@@ -21,7 +21,7 @@ impl_downcast!(Resource);
 
 impl<T: 'static + fmt::Debug> Resource for T {}
 
-/// Resource borrow error type
+/// Resource fetch error type
 #[derive(Error, Debug)]
 pub enum BorrowError {
     #[error("resource of type `{0}` is not set")]

@@ -4,7 +4,7 @@ pub mod erased;
 pub mod owned;
 
 use crate::{
-    world::borrow::{AccessSet, Borrow, BorrowItem, AutoFetchImpl, AutoFetch},
+    world::fetch::{AccessSet, Fetch, FetchItem, AutoFetchImpl, AutoFetch},
     World,
 };
 
@@ -36,7 +36,7 @@ macro_rules! impl_system {
             // The GAT hack above only works for references of functions and
             // requires such mysterious boundary:
             for<'a> &'a mut F: FnMut($($xs),+) -> Ret +
-                FnMut($(BorrowItem<$xs>),+) -> Ret
+                FnMut($(FetchItem<$xs>),+) -> Ret
         {
             // To work with the `F` we need such an odd function:
             unsafe fn run(&mut self, w: &World) -> Ret {
@@ -47,14 +47,14 @@ macro_rules! impl_system {
                     f($($xs,)+)
                 }
 
-                let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
+                let ($($xs),+) = ($(Fetch::<$xs>::fetch(w)),+);
                 inner(self, $($xs,)+)
             }
 
             fn accesses(&self) -> AccessSet {
                 let mut set = AccessSet::default();
                 [$(
-                    Borrow::<$xs>::accesses(),
+                    Fetch::<$xs>::accesses(),
                 )+]
                     .iter()
                     .for_each(|a| set.merge_impl(a));
@@ -69,7 +69,7 @@ macro_rules! impl_system {
             // The GAT hack above only works for references of functions and
             // requires such mysterious boundary:
             for<'a> &'a mut F: FnMut(Data, $($xs),+) -> Ret +
-                FnMut(Data, $(BorrowItem<$xs>),+) -> Ret
+                FnMut(Data, $(FetchItem<$xs>),+) -> Ret
         {
             // To work with the `F` we need such an odd function:
             unsafe fn run_arg(&mut self, data: Data, w: &World) -> Ret {
@@ -81,14 +81,14 @@ macro_rules! impl_system {
                     f(data, $($xs,)+)
                 }
 
-                let ($($xs),+) = ($(Borrow::<$xs>::borrow(w)),+);
+                let ($($xs),+) = ($(Fetch::<$xs>::fetch(w)),+);
                 inner(self, data, $($xs,)+)
             }
 
             fn accesses(&self) -> AccessSet {
                 let mut set = AccessSet::default();
                 [$(
-                    Borrow::<$xs>::accesses(),
+                    Fetch::<$xs>::accesses(),
                 )+]
                     .iter()
                     .for_each(|a| set.merge_impl(a));
