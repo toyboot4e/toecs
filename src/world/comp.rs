@@ -264,18 +264,6 @@ impl<T> ComponentPool<T> {
     }
 }
 
-impl<T> AsRef<[T]> for ComponentPool<T> {
-    fn as_ref(&self) -> &[T] {
-        self.as_slice()
-    }
-}
-
-impl<T> AsMut<[T]> for ComponentPool<T> {
-    fn as_mut(&mut self) -> &mut [T] {
-        self.as_mut_slice()
-    }
-}
-
 impl<T> ops::Index<Entity> for ComponentPool<T> {
     type Output = T;
     fn index(&self, index: Entity) -> &Self::Output {
@@ -324,6 +312,20 @@ impl<'r, T: Component> Comp<'r, T> {
 #[derive(Debug)]
 pub struct CompMut<'r, T: Component> {
     borrow: AtomicRefMut<'r, ComponentPool<T>>,
+}
+
+impl<'r, T: Component> AsRef<ComponentPool<T>> for CompMut<'r, T> {
+    #[inline]
+    fn as_ref(&self) -> &ComponentPool<T> {
+        self.deref()
+    }
+}
+
+impl<'r, T: Component> AsMut<ComponentPool<T>> for CompMut<'r, T> {
+    #[inline]
+    fn as_mut(&mut self) -> &mut ComponentPool<T> {
+        self.deref_mut()
+    }
 }
 
 impl<'r, T: Component> ops::Deref for CompMut<'r, T> {
