@@ -103,10 +103,7 @@ impl AccessSet {
     }
 }
 
-/// Types that borrow some data from a [`World`]: [`Res<T>`], [`Comp<T>`], ..
-///
-/// This type is basically [`AutoFetchImpl`], but actially a different type just to emulate GAT on
-/// stable Rust.
+/// Types that are dispatched to systems automatically on run
 ///
 /// # Default implementations
 ///
@@ -119,7 +116,13 @@ impl AccessSet {
 /// User can define custom [`AutoFetch`] type with the derive macro:
 ///
 /// ```
-/// // TODO:
+/// use toecs::prelude::*;
+/// /// Type that are composed of `AutoFetch` types can also be an `AutoFetch`
+/// #[derive(AutoFetch, Debug)]
+/// pub struct CustomFetch<'w> {
+///     u: Res<'w, usize>,
+///     i: Comp<'w, isize>,
+/// }
 /// ```
 pub trait AutoFetch {
     /// Emulates `Item<'w>` with `<AutoFetch::Borrow as AutoFetchImpl<'w>>::Item`
