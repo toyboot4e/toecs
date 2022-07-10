@@ -1,6 +1,6 @@
 use toecs::{
     world::{
-        borrow::{AccessSet, AutoFetchImpl, AutoFetch},
+        fetch::{AccessSet, AutoFetchImpl, AutoFetch},
         comp::{Comp, CompMut, Component, ComponentPoolMap},
         ent::Entity,
         res::{Res, ResMut},
@@ -24,7 +24,7 @@ pub struct CustomFetch<'w> {
 }
 
 #[test]
-fn custom_borrow_access_set() {
+fn custom_fetch_access_set() {
     assert_eq!(
         <<CustomFetch as AutoFetch>::Fetch as AutoFetchImpl>::accesses(),
             <<(Res<U>,ResMut<I>,Comp<U>,CompMut<I>) as AutoFetch>::Fetch as AutoFetchImpl>::accesses(),
@@ -36,11 +36,11 @@ fn custom_borrow_access_set() {
     world.set_res_set((U(10), I(10)));
     world.spawn((U(20), I(20)));
 
-    fn test_custom_borrow(_c: CustomFetch) {
+    fn test_custom_fetch(_c: CustomFetch) {
         //
     }
 
-    world.run(test_custom_borrow);
+    world.run(test_custom_fetch);
 }
 
 #[derive(ComponentSet)]
