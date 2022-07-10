@@ -4,7 +4,7 @@ pub mod erased;
 pub mod owned;
 
 use crate::{
-    world::borrow::{AccessSet, Borrow, BorrowItem, BorrowWorld, GatBorrowWorld},
+    world::borrow::{AccessSet, Borrow, BorrowItem, AutoFetchImpl, AutoFetch},
     World,
 };
 
@@ -32,7 +32,7 @@ macro_rules! impl_system {
         #[allow(warnings)]
         unsafe impl<Ret, $($xs),+, F> System<($($xs,)+), Ret> for F
         where
-            $($xs: GatBorrowWorld,)+
+            $($xs: AutoFetch,)+
             // The GAT hack above only works for references of functions and
             // requires such mysterious boundary:
             for<'a> &'a mut F: FnMut($($xs),+) -> Ret +
@@ -65,7 +65,7 @@ macro_rules! impl_system {
         #[allow(warnings)]
         unsafe impl<Ret, Data, $($xs),+, F> ArgSystem<Data, ($($xs,)+), Ret> for F
         where
-            $($xs: GatBorrowWorld,)+
+            $($xs: AutoFetch,)+
             // The GAT hack above only works for references of functions and
             // requires such mysterious boundary:
             for<'a> &'a mut F: FnMut(Data, $($xs),+) -> Ret +
@@ -160,7 +160,7 @@ where
 unsafe impl<S, Params, Ret> ExclusiveSystem<Params, Ret> for S
 where
     S: System<Params, Ret>,
-    Params: GatBorrowWorld,
+    Params: AutoFetch,
 {
     unsafe fn run_ex(&mut self, w: &mut World) -> Ret {
         self.run(w)
@@ -186,7 +186,7 @@ where
 unsafe impl<S, Data, Params, Ret> ExclusiveArgSystem<Data, Params, Ret> for S
 where
     S: ArgSystem<Data, Params, Ret>,
-    Params: GatBorrowWorld,
+    Params: AutoFetch,
 {
     unsafe fn run_arg_ex(&mut self, data: Data, w: &mut World) -> Ret {
         self.run_arg(data, w)

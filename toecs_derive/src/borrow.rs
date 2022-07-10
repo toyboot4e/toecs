@@ -7,12 +7,12 @@ pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
 
     let data = match &ast.data {
         Data::Struct(x) => x,
-        _ => panic!("#[derive(BorrowWorld)] is only for structs"),
+        _ => panic!("#[derive(AutoFetchImpl)] is only for structs"),
     };
 
     let fields = match &data.fields {
         Fields::Named(xs) => xs,
-        _ => panic!("#[derive(BorrowWorld): only supports named fields"),
+        _ => panic!("#[derive(AutoFetchImpl): only supports named fields"),
     };
 
     let field_tys = fields.named.iter().map(|f| &f.ty).collect::<Vec<_>>();
@@ -26,17 +26,17 @@ pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
         #[doc(hidden)]
         pub struct #gat_hack<T>(::core::marker::PhantomData<T>);
 
-        impl<'w> GatBorrowWorld for #ty_ident<'w> {
+        impl<'w> AutoFetch for #ty_ident<'w> {
             type Borrow = #gat_hack<Self>;
         }
 
-        impl<'w> BorrowWorld<'w> for #gat_hack<#ty_ident<'_>> {
+        impl<'w> AutoFetchImpl<'w> for #gat_hack<#ty_ident<'_>> {
             type Item = #ty_ident<'w>;
 
             unsafe fn borrow(w: &'w World) -> Self::Item {
                 #ty_ident {
                     #(
-                        #field_idents: <<#field_tys as GatBorrowWorld>::Borrow as BorrowWorld<'w>>::borrow(w),
+                        #field_idents: <<#field_tys as AutoFetch>::Borrow as AutoFetchImpl<'w>>::borrow(w),
                     )*
                 }
             }
@@ -44,7 +44,7 @@ pub fn impl_gat_borrow_world(ast: DeriveInput) -> TokenStream2 {
             fn accesses() -> AccessSet {
                 AccessSet::concat([
                     #(
-                        <<#field_tys as GatBorrowWorld>::Borrow as BorrowWorld<'w>>::accesses(),
+                        <<#field_tys as AutoFetch>::Borrow as AutoFetchImpl<'w>>::accesses(),
                     )*
                 ].iter())
             }

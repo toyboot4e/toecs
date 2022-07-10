@@ -1,6 +1,6 @@
 use toecs::{
     world::{
-        borrow::{AccessSet, BorrowWorld, GatBorrowWorld},
+        borrow::{AccessSet, AutoFetchImpl, AutoFetch},
         comp::{Comp, CompMut, Component, ComponentPoolMap},
         ent::Entity,
         res::{Res, ResMut},
@@ -15,7 +15,7 @@ struct U(u32);
 #[derive(Debug, Component)]
 struct I(u32);
 
-#[derive(GatBorrowWorld)]
+#[derive(AutoFetch)]
 pub struct CustomBorrow<'w> {
     _res_u: Res<'w, U>,
     _res_i: ResMut<'w, I>,
@@ -26,8 +26,8 @@ pub struct CustomBorrow<'w> {
 #[test]
 fn custom_borrow_access_set() {
     assert_eq!(
-        <<CustomBorrow as GatBorrowWorld>::Borrow as BorrowWorld>::accesses(),
-            <<(Res<U>,ResMut<I>,Comp<U>,CompMut<I>) as GatBorrowWorld>::Borrow as BorrowWorld>::accesses(),
+        <<CustomBorrow as AutoFetch>::Borrow as AutoFetchImpl>::accesses(),
+            <<(Res<U>,ResMut<I>,Comp<U>,CompMut<I>) as AutoFetch>::Borrow as AutoFetchImpl>::accesses(),
     );
 
     let mut world = World::default();

@@ -1,7 +1,7 @@
 //! Type-erased systems
 
 use crate::{
-    sys::{GatBorrowWorld, System},
+    sys::{AutoFetch, System},
     World,
 };
 
@@ -57,7 +57,7 @@ where
 impl<S, Params, Ret> ExclusiveResultSystem<Params, Ret> for S
 where
     S: ResultSystem<Params, Ret>,
-    Params: GatBorrowWorld,
+    Params: AutoFetch,
 {
     unsafe fn run_as_result_ex(&mut self, w: &mut World) -> SystemResult {
         self.run_as_result(w)

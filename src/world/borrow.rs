@@ -1,6 +1,6 @@
 //! Borrow
 
-pub use toecs_derive::GatBorrowWorld;
+pub use toecs_derive::AutoFetch;
 
 use std::{any::TypeId, fmt};
 
@@ -105,7 +105,7 @@ impl AccessSet {
 
 /// Types that borrow some data from a [`World`]: [`Res<T>`], [`Comp<T>`], ..
 ///
-/// This type is basically [`BorrowWorld`], but actially a different type just to emulate GAT on
+/// This type is basically [`AutoFetchImpl`], but actially a different type just to emulate GAT on
 /// stable Rust.
 ///
 /// # Default implementations
@@ -116,18 +116,18 @@ impl AccessSet {
 ///
 /// # Derive macro
 ///
-/// User can define custom [`GatBorrowWorld`] type with the derive macro:
+/// User can define custom [`AutoFetch`] type with the derive macro:
 ///
 /// ```
 /// // TODO:
 /// ```
-pub trait GatBorrowWorld {
-    /// Emulates `Item<'w>` with `<GatBorrowWorld::Borrow as BorrowWorld<'w>>::Item`
-    type Borrow: for<'a> BorrowWorld<'a>;
+pub trait AutoFetch {
+    /// Emulates `Item<'w>` with `<AutoFetch::Borrow as AutoFetchImpl<'w>>::Item`
+    type Borrow: for<'a> AutoFetchImpl<'a>;
 }
 
-/// (Internal) Type specified in `GatBorrowWorld::Borrow` that implements actual borrow
-pub trait BorrowWorld<'w> {
+/// (Internal) Type specified in `AutoFetch::Borrow` that implements actual borrow
+pub trait AutoFetchImpl<'w> {
     type Item;
     /// Borrows some data from the world
     /// # Panics
@@ -137,17 +137,17 @@ pub trait BorrowWorld<'w> {
 }
 
 // shorthand for associated types
-pub type Borrow<T> = <T as GatBorrowWorld>::Borrow;
-pub type BorrowItem<'w, T> = <Borrow<T> as BorrowWorld<'w>>::Item;
+pub type Borrow<T> = <T as AutoFetch>::Borrow;
+pub type BorrowItem<'w, T> = <Borrow<T> as AutoFetchImpl<'w>>::Item;
 
 /// (Internal) Hack for emulating GAT on stable Rust
 pub struct GatHack<T>(::core::marker::PhantomData<T>);
 
-impl GatBorrowWorld for &'_ EntityPool {
+impl AutoFetch for &'_ EntityPool {
     type Borrow = GatHack<Self>;
 }
 
-impl<'w> BorrowWorld<'w> for GatHack<&'_ EntityPool> {
+impl<'w> AutoFetchImpl<'w> for GatHack<&'_ EntityPool> {
     type Item = &'w EntityPool;
     unsafe fn borrow(w: &'w World) -> Self::Item {
         &w.ents
@@ -157,11 +157,11 @@ impl<'w> BorrowWorld<'w> for GatHack<&'_ EntityPool> {
     }
 }
 
-impl<T: Resource> GatBorrowWorld for Res<'_, T> {
+impl<T: Resource> AutoFetch for Res<'_, T> {
     type Borrow = GatHack<Self>;
 }
 
-impl<'w, T: Resource> BorrowWorld<'w> for GatHack<Res<'_, T>> {
+impl<'w, T: Resource> AutoFetchImpl<'w> for GatHack<Res<'_, T>> {
     type Item = Res<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
         w.res.try_borrow().unwrap()
@@ -171,11 +171,11 @@ impl<'w, T: Resource> BorrowWorld<'w> for GatHack<Res<'_, T>> {
     }
 }
 
-impl<T: Resource> GatBorrowWorld for ResMut<'_, T> {
+impl<T: Resource> AutoFetch for ResMut<'_, T> {
     type Borrow = GatHack<Self>;
 }
 
-impl<'w, T: Resource> BorrowWorld<'w> for GatHack<ResMut<'_, T>> {
+impl<'w, T: Resource> AutoFetchImpl<'w> for GatHack<ResMut<'_, T>> {
     type Item = ResMut<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
         w.res.try_borrow_mut().unwrap()
@@ -185,11 +185,11 @@ impl<'w, T: Resource> BorrowWorld<'w> for GatHack<ResMut<'_, T>> {
     }
 }
 
-impl<T: Component> GatBorrowWorld for Comp<'_, T> {
+impl<T: Component> AutoFetch for Comp<'_, T> {
     type Borrow = GatHack<Self>;
 }
 
-impl<'w, T: Component> BorrowWorld<'w> for GatHack<Comp<'_, T>> {
+impl<'w, T: Component> AutoFetchImpl<'w> for GatHack<Comp<'_, T>> {
     type Item = Comp<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
         w.comp.try_borrow().unwrap()
@@ -199,11 +199,11 @@ impl<'w, T: Component> BorrowWorld<'w> for GatHack<Comp<'_, T>> {
     }
 }
 
-impl<T: Component> GatBorrowWorld for CompMut<'_, T> {
+impl<T: Component> AutoFetch for CompMut<'_, T> {
     type Borrow = GatHack<Self>;
 }
 
-impl<'w, T: Component> BorrowWorld<'w> for GatHack<CompMut<'_, T>> {
+impl<'w, T: Component> AutoFetchImpl<'w> for GatHack<CompMut<'_, T>> {
     type Item = CompMut<'w, T>;
     unsafe fn borrow(w: &'w World) -> Self::Item {
         w.comp.try_borrow_mut().unwrap()
@@ -215,16 +215,16 @@ impl<'w, T: Component> BorrowWorld<'w> for GatHack<CompMut<'_, T>> {
 
 macro_rules! impl_borrow_tuple {
     ($($xs:ident),+ $(,)?) => {
-        impl<$($xs,)+> GatBorrowWorld for ($($xs,)+)
+        impl<$($xs,)+> AutoFetch for ($($xs,)+)
         where
-            $($xs: GatBorrowWorld,)+
+            $($xs: AutoFetch,)+
         {
             type Borrow = ($($xs::Borrow,)+);
         }
 
-        impl<'w, $($xs,)+> BorrowWorld<'w> for ($($xs,)+)
+        impl<'w, $($xs,)+> AutoFetchImpl<'w> for ($($xs,)+)
         where
-            $($xs: BorrowWorld<'w>,)+
+            $($xs: AutoFetchImpl<'w>,)+
         {
             type Item = ($($xs::Item,)+);
 

@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::{
     sys::{AccessSet, ArgSystem, ExclusiveArgSystem, ExclusiveSystem, System},
-    world::borrow::GatBorrowWorld,
+    world::borrow::AutoFetch,
     World,
 };
 
@@ -107,7 +107,7 @@ macro_rules! impl_into_system {
         impl<S, $($xs),*, Ret> IntoBoxSystem<($($xs,)*), Ret> for S
         where
             S: System<($($xs,)*), Ret> + 'static,
-            $($xs: GatBorrowWorld,)*
+            $($xs: AutoFetch,)*
         {
             fn into_box_system(mut self) -> BoxSystem<Ret> {
                 let accesses = S::accesses(&self);
@@ -126,7 +126,7 @@ macro_rules! impl_into_system {
         impl<S, $($xs),*, Ret> IntoExclusiveBoxSystem<($($xs,)*), Ret> for S
         where
             S: ExclusiveSystem<($($xs,)*), Ret> + 'static,
-            $($xs: GatBorrowWorld,)*
+            $($xs: AutoFetch,)*
         {
             fn into_ex_box_system(mut self) -> ExclusiveBoxSystem<Ret> {
                 let f = Box::new(move |world: &mut World| unsafe {
@@ -142,7 +142,7 @@ macro_rules! impl_into_system {
         impl<S, Data, $($xs),*, Ret> IntoBoxArgSystem<Data, ($($xs,)*), Ret> for S
         where
             S: ArgSystem<Data, ($($xs,)*), Ret> + 'static,
-            $($xs: GatBorrowWorld,)*
+            $($xs: AutoFetch,)*
         {
             fn into_box_arg_system(mut self) -> BoxArgSystem<Data, Ret> {
                 let accesses = S::accesses(&self);
@@ -161,7 +161,7 @@ macro_rules! impl_into_system {
         impl<S, Data, $($xs),*, Ret> IntoExclusiveBoxArgSystem<Data, ($($xs,)*), Ret> for S
         where
             S: ExclusiveArgSystem<Data, ($($xs,)*), Ret> + 'static,
-            $($xs: GatBorrowWorld,)*
+            $($xs: AutoFetch,)*
         {
             fn into_ex_box_arg_system(mut self) -> ExclusiveBoxArgSystem<Data, Ret> {
                 let f = Box::new(move |data: Data, world: &mut World| unsafe {

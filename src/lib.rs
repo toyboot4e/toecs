@@ -14,7 +14,7 @@ pub mod prelude {
         query::Iter,
         sys::erased::SystemResult,
         world::{
-            borrow::{AccessSet, BorrowWorld, GatBorrowWorld},
+            borrow::{AccessSet, AutoFetchImpl, AutoFetch},
             comp::{Comp, CompMut, Component, ComponentPool, ComponentPoolMap},
             ent::Entity,
             res::{Res, ResMut},
@@ -212,11 +212,11 @@ impl World {
 
     /// Borrows custom type or pre-defined type. Prefer explicit alternative such as
     /// [`res`](Self::res) when doable.
-    pub fn borrow<'w, T: borrow::GatBorrowWorld>(&'w self) -> T
+    pub fn borrow<'w, T: borrow::AutoFetch>(&'w self) -> T
     where
-        T::Borrow: borrow::BorrowWorld<'w, Item = T>,
+        T::Borrow: borrow::AutoFetchImpl<'w, Item = T>,
     {
-        unsafe { <<T as borrow::GatBorrowWorld>::Borrow as borrow::BorrowWorld>::borrow(self) }
+        unsafe { <<T as borrow::AutoFetch>::Borrow as borrow::AutoFetchImpl>::borrow(self) }
     }
 
     /// Inserts a component to an entity. Returns some old component if it is present.
