@@ -9,6 +9,9 @@ pub mod query;
 pub mod sys;
 pub mod world;
 
+#[cfg(feature = "use-serde")]
+pub mod serde;
+
 pub mod prelude {
     pub use crate::{
         query::Iter,

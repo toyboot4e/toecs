@@ -4,12 +4,16 @@
 
 use std::{iter, num::NonZeroU32, slice};
 
+#[cfg(feature = "use-serde")]
+use serde::{Serialize, Deserialize};
+
 /// The length of [`SparseArray`] will be multiples of this value
 const UNIT_LEN: usize = 64;
 
 macro_rules! newtype_index {
     ($(#[$meta:meta])* $vis:vis $ty:ident($internal:ty);) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
         $(#[$meta])*
         $vis struct $ty(pub(crate) $internal);
 
@@ -48,6 +52,7 @@ newtype_index! {
 /// assert_eq!(size_of::<Generation>(), size_of::<Option<Generation>>());
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 pub struct Generation {
     raw: NonZeroU32,
 }
@@ -71,6 +76,7 @@ impl Generation {
 macro_rules! generational_index {
     ($(#[$meta:meta])* $vis:vis $ty:ident($index:ty);) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
         $(#[$meta])*
         $vis struct $ty {
             raw: $index,
@@ -180,6 +186,7 @@ with the same dense index, which is called "perfect SoA". It requires syncing an
 known workaround called "groups".
 */
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 pub struct SparseSet<T> {
     /// Maps `SparseIndex` to `DenseIndex`
     to_dense: SparseArray,
@@ -371,6 +378,7 @@ impl<T> SparseSet<T> {
 
 /// Maps [`SparseIndex`] to [`DenseIndex`]
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 struct SparseArray {
     data: Vec<Option<DenseIndex>>,
 }

@@ -5,6 +5,9 @@ use std::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
+#[cfg(feature = "use-serde")]
+use serde::{Serialize, Deserialize};
+
 use crate::{
     prelude::ComponentPool,
     world::{comp, sparse::*},
@@ -25,6 +28,7 @@ use crate::{
 /// assert_eq!(size_of::<Test>(), size_of::<Option<Test>>());
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 #[repr(transparent)]
 pub struct Entity(pub(crate) SparseIndex);
 

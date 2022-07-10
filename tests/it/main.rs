@@ -1,5 +1,9 @@
 //! The only integration test "crate"
 
+#[cfg(feature = "use-serde")]
+pub mod serde_test;
+
+
 use toecs::{
     query::Iter,
     sys::System,

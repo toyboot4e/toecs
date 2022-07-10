@@ -8,6 +8,10 @@ members = [
     "toecs_derive",
 ]
 
+[features]
+default = ["use-serde"]
+use-serde = ["serde", "erased-serde"]
+
 [dependencies]
 toecs_derive = { path = "./toecs_derive", version = "0.1.0" }
 
@@ -17,4 +21,10 @@ downcast-rs = "1.2.0"
 log = "0.4.17"
 rustc-hash = "1.1.0"
 thiserror = "1.0.31"
+
+serde = { version = "1.0.138", features = ["derive"], optional = true }
+erased-serde = { version = "0.3.21", optional = true }
+
+[dev-dependencies]
+ron = "0.7.1"
 
