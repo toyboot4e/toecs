@@ -14,9 +14,9 @@ pub mod prelude {
         query::Iter,
         sys::erased::SystemResult,
         world::{
-            fetch::{AccessSet, AutoFetchImpl, AutoFetch},
             comp::{Comp, CompMut, Component, ComponentPool, ComponentPoolMap},
             ent::Entity,
+            fetch::{AccessSet, AutoFetch, AutoFetchImpl},
             res::{Res, ResMut},
             ComponentSet,
         },
@@ -42,9 +42,9 @@ use std::{any::TypeId, cell::RefCell, fmt, mem};
 use crate::{
     sys::System,
     world::{
-        fetch,
-        comp::{Comp, CompMut, Component, ComponentPoolMap},
+        comp::{self, Comp, CompMut, Component, ComponentPoolMap},
         ent::{Entity, EntityPool},
+        fetch,
         res::{self, Res, ResMut, Resource, ResourceMap},
         ComponentSet, ResourceSet,
     },
@@ -194,6 +194,16 @@ impl World {
 
     pub fn contains(&self, ent: Entity) -> bool {
         self.ents.contains(ent)
+    }
+
+    /// Tries to get an immutable access to a component pool of type `T`
+    pub fn try_comp<T: Component>(&self) -> Result<Comp<T>, comp::BorrowError> {
+        self.comp.try_borrow::<T>()
+    }
+
+    /// Tries to get a mutable access to a coponent pool of type `Tn`
+    pub fn try_comp_mut<T: Component>(&self) -> Result<CompMut<T>, comp::BorrowError> {
+        self.comp.try_borrow_mut::<T>()
     }
 
     /// Tries to get an immutable access to a component pool of type `T`
