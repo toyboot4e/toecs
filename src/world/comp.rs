@@ -226,6 +226,10 @@ impl<T> ComponentPool<T> {
         self.set.as_mut_slice()
     }
 
+    pub fn len(&self) -> usize {
+        self.as_slice().len()
+    }
+
     pub fn entities(&self) -> &[Entity] {
         Self::to_entities(self.set.indices())
     }
