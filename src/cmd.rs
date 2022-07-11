@@ -151,6 +151,9 @@ where
     }
 }
 
+impl<Ret: 'static> Command for ExclusiveBoxSystem<Ret> {
+    fn write(mut self, world: &mut World) {
+        self.run_ex(world);
     }
 }
 
