@@ -31,11 +31,13 @@ impl StableTypeId {
     }
 }
 
-/// Fetches the target as `&dyn erased_serde::Serialize` and then run a closure
+/// Fetches the target as `&dyn erased_serde::Serialize` and then run a closure over it
+///
+/// It's takes a closure because each data is stored in `AtomicRefCell` and cannot be returned as
+/// `&dyn erased_serde::Serialize`. 
 type FetchFn = fn(&World, &mut dyn FnMut(&dyn erased_serde::Serialize));
 
 /// (Resource) Type information registry for ser/de support
-// TODO: concurrency
 #[derive(Default)]
 pub struct Registry {
     /// Dynamic type ID to stable type ID
@@ -55,7 +57,7 @@ impl fmt::Debug for Registry {
 }
 
 impl Registry {
-    /// Registers a [`Serialize`] resource
+    /// Registers a [`Serialize`] resource type
     pub fn register_res<T: Resource + serde::Serialize + 'static>(&mut self) {
         let ty = self.register_::<T>();
 
@@ -69,7 +71,7 @@ impl Registry {
         });
     }
 
-    /// Registers a [`Serialize`] resource
+    /// Registers a [`Serialize`] component type
     pub fn register<T: Component + serde::Serialize + 'static>(&mut self) {
         let ty = self.register_::<T>();
 
@@ -137,13 +139,10 @@ impl<'w> serde::Serialize for WorldSerialize<'w> {
     {
         let world = self.world;
 
-        let mut state = serializer.serialize_struct("World", 1)?;
+        let mut state = serializer.serialize_struct("World", 3)?;
 
-        // TODO: resources
-
-        // TODO: entities
-
-        // components
+        state.serialize_field("res", &ser::ResourceMapSerialize { world })?;
+        state.serialize_field("ents", &world.ents)?;
         state.serialize_field("comp", &ser::ComponentPoolMapSerialize { world })?;
 
         state.end()

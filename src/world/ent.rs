@@ -29,6 +29,7 @@ use crate::{
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "use-serde", serde(transparent))]
 #[repr(transparent)]
 pub struct Entity(pub(crate) SparseIndex);
 
@@ -80,6 +81,7 @@ impl Entity {
 /// sparse map.
 /// 2. It needs to recycle sparse index so that the generation is incremented.
 #[derive(Debug, Default)]
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 pub struct EntityPool {
     sparse: Vec<Entry>,
     dense: Vec<Entity>,
@@ -91,6 +93,7 @@ pub struct EntityPool {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 enum Entry {
     ToDense(DenseIndex),
     Empty {

@@ -109,3 +109,4 @@ impl<'w> serde::Serialize for ResourceMapSerialize<'w> {
         map.end()
     }
 }
+
