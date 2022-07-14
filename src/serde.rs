@@ -51,6 +51,9 @@ pub struct Registry {
     /// Stable type ID to dynamic type ID
     s2d: FxHashMap<StableTypeId, TypeId>,
 
+    /// Type name interner
+    name_to_ty: FxHashMap<&'static str, TypeId>,
+
     serialize_fetch: FxHashMap<TypeId, SerializeFetch>,
 }
 
@@ -98,6 +101,8 @@ impl Registry {
         self.d2s.insert(d, s);
         self.s2d.insert(s, d);
 
+        self.name_to_ty.insert(any::type_name::<T>(), d);
+
         d
     }
 }
@@ -109,6 +114,12 @@ impl Registry {
 
     pub fn to_dynamic(&self) -> &FxHashMap<StableTypeId, TypeId> {
         &self.s2d
+    }
+
+    fn intern(&self, s: &str) -> Option<(TypeId, StableTypeId)> {
+        let ty = self.name_to_ty.get(s)?;
+        let id = self.d2s.get(ty)?;
+        Some((*ty, *id))
     }
 }
 
