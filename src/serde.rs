@@ -1,5 +1,6 @@
 //! Serde support
 
+mod de;
 mod ser;
 
 pub use erased_serde;
@@ -42,6 +43,30 @@ impl fmt::Display for StableTypeId {
 /// Ideally it returns `&dyn erased_serde::Serialize`, but the lifetime matters.
 type SerializeFetch = fn(&World, &mut dyn FnMut(&dyn erased_serde::Serialize));
 
+type ErasedDeserializeFn =
+    fn(&mut dyn erased_serde::Deserializer) -> Result<Box<dyn Any>, erased_serde::Error>;
+
+struct ErasedDeserialize {
+    ty: TypeId,
+    f: ErasedDeserializeFn,
+}
+
+impl<'a, 'de> serde::de::DeserializeSeed<'de> for &'a ErasedDeserialize {
+    type Value = (TypeId, Box<dyn Any>);
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut deserializer = Box::new(<dyn erased_serde::Deserializer>::erase(deserializer));
+
+        let x = (self.f)(&mut *deserializer)
+            .map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
+
+        Ok((self.ty, Box::new(x)))
+    }
+}
+
 /// (Resource) Type information registry for ser/de support
 #[derive(Default)]
 pub struct Registry {
@@ -55,6 +80,8 @@ pub struct Registry {
     name_to_ty: FxHashMap<&'static str, TypeId>,
 
     serialize_fetch: FxHashMap<TypeId, SerializeFetch>,
+
+    deserialize_any: FxHashMap<TypeId, ErasedDeserialize>,
 }
 
 impl fmt::Debug for Registry {
@@ -65,7 +92,11 @@ impl fmt::Debug for Registry {
 
 impl Registry {
     /// Registers a [`Serialize`] resource type
-    pub fn register_res<T: Resource + serde::Serialize + 'static>(&mut self) {
+    pub fn register_res<
+        T: Resource + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
+    >(
+        &mut self,
+    ) {
         let ty = self.register_::<T>();
 
         self.serialize_fetch.insert(ty, |world, closure| {
@@ -76,10 +107,25 @@ impl Registry {
 
             (closure)(&*res);
         });
+
+        self.deserialize_any.insert(
+            ty,
+            ErasedDeserialize {
+                ty,
+                f: |d| {
+                    let x = erased_serde::deserialize::<T>(d)?;
+                    Ok(Box::new(x))
+                },
+            },
+        );
     }
 
     /// Registers a [`Serialize`] component type
-    pub fn register<T: Component + serde::Serialize + 'static>(&mut self) {
+    pub fn register<
+        T: Component + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
+    >(
+        &mut self,
+    ) {
         let ty = self.register_::<T>();
 
         self.serialize_fetch.insert(ty, |world, closure| {
