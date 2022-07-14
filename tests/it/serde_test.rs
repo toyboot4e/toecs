@@ -35,7 +35,7 @@ fn test_serde_world() {
         reg.register_res::<Pos>();
     }
 
-    world.set_res(Pos { x:100, y:100});
+    world.set_res(Pos { x: 100, y: 100 });
 
     let _e0 = world.spawn(Pos { x: 10, y: 10 });
     let _e1 = world.spawn((Pos { x: 11, y: 11 }, NonSerde(5)));

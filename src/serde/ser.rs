@@ -1,10 +1,5 @@
 //! `Serialize` implementaitons
 
-// TODO: should prefer erased_serde::Serializer?
-
-pub use erased_serde;
-pub use serde;
-
 use serde::ser::{SerializeMap, SerializeSeq};
 
 use crate::{prelude::*, serde::Registry};
@@ -55,7 +50,7 @@ impl<'w> serde::Serialize for ComponentPoolMapSerialize<'w> {
         for comps in world.comp.any_iter() {
             let ty = comps.type_id;
 
-            let key = match reg.to_stable(&ty) {
+            let key = match reg.to_stable().get(&ty) {
                 Some(key) => key,
                 None => continue,
             };
@@ -91,7 +86,7 @@ impl<'w> serde::Serialize for ResourceMapSerialize<'w> {
         for res in world.res.any_iter() {
             let ty = res.type_id;
 
-            let key = match reg.to_stable(&ty) {
+            let key = match reg.to_stable().get(&ty) {
                 Some(key) => key,
                 None => continue,
             };
@@ -109,4 +104,3 @@ impl<'w> serde::Serialize for ResourceMapSerialize<'w> {
         map.end()
     }
 }
-

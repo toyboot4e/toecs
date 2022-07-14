@@ -31,11 +31,16 @@ impl StableTypeId {
     }
 }
 
-/// Fetches the target as `&dyn erased_serde::Serialize` and then run a closure over it
+impl fmt::Display for StableTypeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.raw, f)
+    }
+}
+
+/// Fetches some data from the world and serializes it by running a closure on it.
 ///
-/// It's takes a closure because each data is stored in `AtomicRefCell` and cannot be returned as
-/// `&dyn erased_serde::Serialize`. 
-type FetchFn = fn(&World, &mut dyn FnMut(&dyn erased_serde::Serialize));
+/// Ideally it returns `&dyn erased_serde::Serialize`, but the lifetime matters.
+type SerializeFetch = fn(&World, &mut dyn FnMut(&dyn erased_serde::Serialize));
 
 /// (Resource) Type information registry for ser/de support
 #[derive(Default)]
@@ -46,8 +51,7 @@ pub struct Registry {
     /// Stable type ID to dynamic type ID
     s2d: FxHashMap<StableTypeId, TypeId>,
 
-    /// See [`FetchFn`]
-    serialize_fetch: FxHashMap<TypeId, FetchFn>,
+    serialize_fetch: FxHashMap<TypeId, SerializeFetch>,
 }
 
 impl fmt::Debug for Registry {
@@ -99,24 +103,12 @@ impl Registry {
 }
 
 impl Registry {
-    /// Converts type to stable ID
-    pub fn to_stable(&self, d: &TypeId) -> Option<&StableTypeId> {
-        self.d2s.get(&d)
+    pub fn to_stable(&self) -> &FxHashMap<TypeId, StableTypeId> {
+        &self.d2s
     }
 
-    /// Converts stable ID to type ID
-    pub fn to_dynamic(&self, s: &StableTypeId) -> Option<&TypeId> {
-        self.s2d.get(&s)
-    }
-
-    /// Converts type to stable ID
-    pub fn to_stable_t<T: 'static>(&self) -> Option<&StableTypeId> {
-        self.to_stable(&TypeId::of::<T>())
-    }
-
-    /// Converts stable ID to type ID
-    pub fn to_dynamic_t<T: 'static>(&self) -> Option<&TypeId> {
-        self.to_dynamic(&StableTypeId::of::<T>())
+    pub fn to_dynamic(&self) -> &FxHashMap<StableTypeId, TypeId> {
+        &self.s2d
     }
 }
 
