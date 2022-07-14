@@ -47,12 +47,11 @@ type ErasedDeserializeFn =
     fn(&mut dyn erased_serde::Deserializer) -> Result<Box<dyn Any>, erased_serde::Error>;
 
 struct ErasedDeserialize {
-    ty: TypeId,
     f: ErasedDeserializeFn,
 }
 
 impl<'a, 'de> serde::de::DeserializeSeed<'de> for &'a ErasedDeserialize {
-    type Value = (TypeId, Box<dyn Any>);
+    type Value = Box<dyn Any>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
@@ -60,10 +59,10 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for &'a ErasedDeserialize {
     {
         let mut deserializer = Box::new(<dyn erased_serde::Deserializer>::erase(deserializer));
 
-        let x = (self.f)(&mut *deserializer)
-            .map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
-
-        Ok((self.ty, Box::new(x)))
+        match (self.f)(&mut *deserializer) {
+            Ok(x) => Ok(Box::new(x)),
+            Err(e) => Err(serde::de::Error::custom(format!("{:?}", e))),
+        }
     }
 }
 
@@ -111,7 +110,6 @@ impl Registry {
         self.deserialize_any.insert(
             ty,
             ErasedDeserialize {
-                ty,
                 f: |d| {
                     let x = erased_serde::deserialize::<T>(d)?;
                     Ok(Box::new(x))

@@ -59,9 +59,8 @@ impl<'a, 'de> de::Visitor<'de> for ComponentPoolMapVisitor<'a> {
             //     .get(&key)
             //     .unwrap_or_else(|| panic!("Unable to find deserialize for type key {:?}", key));
 
-            let (ty, key) = match reg.intern(&raw_key) {
+            let (ty, _key) = match reg.intern(&raw_key) {
                 Some(x) => x,
-                // TODO: consider
                 None => continue,
             };
 
@@ -70,7 +69,7 @@ impl<'a, 'de> de::Visitor<'de> for ComponentPoolMapVisitor<'a> {
                 None => continue,
             };
 
-            let (ty, value) = access.next_value_seed(deserialize_any)?;
+            let value = access.next_value_seed(deserialize_any)?;
 
             // TODO:
         }
