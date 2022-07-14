@@ -14,7 +14,10 @@ use std::{
 use rustc_hash::FxHashMap;
 use serde::ser::SerializeStruct;
 
-use crate::{prelude::*, world::res::Resource};
+use crate::{
+    prelude::*,
+    world::{res::Resource, TypeInfo},
+};
 
 /// Stable type ID across compliations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -75,8 +78,7 @@ pub struct Registry {
     /// Stable type ID to dynamic type ID
     s2d: FxHashMap<StableTypeId, TypeId>,
 
-    /// Type name interner
-    name_to_ty: FxHashMap<&'static str, TypeId>,
+    to_info: FxHashMap<&'static str, TypeInfo>,
 
     serialize_fetch: FxHashMap<TypeId, SerializeFetch>,
 
@@ -96,7 +98,7 @@ impl Registry {
     >(
         &mut self,
     ) {
-        let ty = self.register_::<T>();
+        let ty = self.on_register::<T>();
 
         self.serialize_fetch.insert(ty, |world, closure| {
             let res = match world.try_res::<T>() {
@@ -124,7 +126,7 @@ impl Registry {
     >(
         &mut self,
     ) {
-        let ty = self.register_::<T>();
+        let ty = self.on_register::<T>();
 
         self.serialize_fetch.insert(ty, |world, closure| {
             let comps = match world.try_comp::<T>() {
@@ -138,14 +140,14 @@ impl Registry {
         });
     }
 
-    fn register_<T: 'static>(&mut self) -> TypeId {
+    fn on_register<T: 'static>(&mut self) -> TypeId {
         let s = StableTypeId::of::<T>();
         let d = TypeId::of::<T>();
 
         self.d2s.insert(d, s);
         self.s2d.insert(s, d);
-
-        self.name_to_ty.insert(any::type_name::<T>(), d);
+        self.to_info
+            .insert(any::type_name::<T>(), TypeInfo::of::<T>());
 
         d
     }
@@ -160,10 +162,8 @@ impl Registry {
         &self.s2d
     }
 
-    fn intern(&self, s: &str) -> Option<(TypeId, StableTypeId)> {
-        let ty = self.name_to_ty.get(s)?;
-        let id = self.d2s.get(ty)?;
-        Some((*ty, *id))
+    fn intern(&self, s: &str) -> Option<&TypeInfo> {
+        self.to_info.get(s)
     }
 }
 

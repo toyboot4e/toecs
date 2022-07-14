@@ -3,13 +3,13 @@
 #[cfg(test)]
 mod tests;
 
-pub mod fetch;
 pub mod comp;
 pub mod ent;
+pub mod fetch;
 pub mod res;
 pub mod sparse;
 
-use std::any::TypeId;
+use std::any::{self, TypeId};
 
 pub use toecs_derive::ComponentSet;
 
@@ -21,6 +21,22 @@ use crate::{
     },
     World,
 };
+
+/// Metadata for types stored in any map
+#[derive(Debug)]
+pub(crate) struct TypeInfo {
+    pub ty: TypeId,
+    pub name: &'static str,
+}
+
+impl TypeInfo {
+    pub fn of<T: 'static>() -> Self {
+        Self {
+            ty: TypeId::of::<T>(),
+            name: any::type_name::<T>(),
+        }
+    }
+}
 
 /// One ore more components, or set of component sets
 pub trait ComponentSet: Send + Sync + 'static {

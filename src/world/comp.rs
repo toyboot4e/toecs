@@ -18,6 +18,7 @@ use thiserror::Error;
 use crate::world::{
     ent::Entity,
     sparse::{DenseIndex, SparseIndex, SparseSet},
+    TypeInfo,
 };
 
 /// Type boundary for component types
@@ -42,12 +43,8 @@ pub struct ComponentPoolMap {
 
 #[derive(Debug)]
 pub(crate) struct AnyComponentPool {
-    /// For serde support
     #[allow(unused)]
-    pub(crate) of_type: &'static str,
-    /// For serde support
-    #[allow(unused)]
-    pub(crate) type_id: TypeId,
+    pub(crate) info: TypeInfo,
     any: Box<dyn ErasedComponentPool>,
 }
 
@@ -79,8 +76,7 @@ impl ComponentPoolMap {
         }
 
         let pool = AnyComponentPool {
-            of_type: any::type_name::<T>(),
-            type_id: TypeId::of::<T>(),
+            info: TypeInfo::of::<T>(),
             any: Box::new(ComponentPool::<T>::default()),
         };
 
@@ -173,7 +169,7 @@ impl<'r> fmt::Debug for ComponentPoolMapDisplay<'r> {
             .values_mut()
             .map(|cell| cell.get_mut())
             .for_each(|pool| {
-                map.entry(&pool.of_type, &pool.any);
+                map.entry(&pool.info.ty, &pool.any);
             });
 
         map.finish()

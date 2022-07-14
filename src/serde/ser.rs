@@ -48,7 +48,7 @@ impl<'w> serde::Serialize for ComponentPoolMapSerialize<'w> {
         let mut map = serializer.serialize_map(None)?;
 
         for comps in world.comp.any_iter() {
-            let ty = comps.type_id;
+            let ty = comps.info.ty;
 
             let key = match reg.to_stable().get(&ty) {
                 Some(key) => key,
@@ -84,7 +84,7 @@ impl<'w> serde::Serialize for ResourceMapSerialize<'w> {
         let mut map = serializer.serialize_map(None)?;
 
         for res in world.res.any_iter() {
-            let ty = res.type_id;
+            let ty = res.info.ty;
 
             let key = match reg.to_stable().get(&ty) {
                 Some(key) => key,

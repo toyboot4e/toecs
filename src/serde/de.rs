@@ -6,7 +6,7 @@ use serde::de;
 
 use crate::{
     prelude::*,
-    serde::{Registry, StableTypeId},
+    serde::Registry,
     world::{comp::ComponentPoolMap, res::ResourceMap},
 };
 
@@ -59,19 +59,17 @@ impl<'a, 'de> de::Visitor<'de> for ComponentPoolMapVisitor<'a> {
             //     .get(&key)
             //     .unwrap_or_else(|| panic!("Unable to find deserialize for type key {:?}", key));
 
-            let (ty, _key) = match reg.intern(&raw_key) {
+            let info = match reg.intern(&raw_key) {
                 Some(x) => x,
                 None => continue,
             };
 
-            let deserialize_any = match reg.deserialize_any.get(&ty) {
+            let deserialize_any = match reg.deserialize_any.get(&info.ty) {
                 Some(f) => f,
                 None => continue,
             };
 
             let value = access.next_value_seed(deserialize_any)?;
-
-            // TODO:
         }
 
         Ok(out)

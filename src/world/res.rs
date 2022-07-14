@@ -4,7 +4,7 @@
 
 use std::{
     any::{self, TypeId},
-    borrow::self,
+    borrow,
     cell::RefCell,
     fmt, mem, ops,
 };
@@ -13,6 +13,8 @@ use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use downcast_rs::{impl_downcast, Downcast};
 use rustc_hash::FxHashMap;
 use thiserror::Error;
+
+use crate::world::TypeInfo;
 
 /// Type boundary for resource types
 pub trait Resource: 'static + fmt::Debug + Downcast {}
@@ -38,21 +40,16 @@ pub struct ResourceMap {
 
 #[derive(Debug)]
 pub(crate) struct AnyResource {
-    /// For serde support
     #[allow(unused)]
-    pub(crate) of_type: &'static str,
-    /// For serde support
-    #[allow(unused)]
-    pub(crate) type_id: TypeId,
+    pub(crate) info: TypeInfo,
     any: Box<dyn Resource>,
 }
 
 impl ResourceMap {
     pub fn insert<T: Resource>(&mut self, x: T) -> Option<T> {
         let new_cell = AtomicRefCell::new(AnyResource {
+            info: TypeInfo::of::<T>(),
             any: Box::new(x),
-            type_id: TypeId::of::<T>(),
-            of_type: any::type_name::<T>(),
         });
         let old_cell = self.cells.insert(TypeId::of::<T>(), new_cell)?;
         Some(Self::unwrap_res(old_cell.into_inner()))
