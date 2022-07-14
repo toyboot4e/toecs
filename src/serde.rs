@@ -16,7 +16,7 @@ use serde::ser::SerializeStruct;
 
 use crate::{
     prelude::*,
-    world::{res::Resource, TypeInfo},
+    world::{res::Resource, TypeInfo, comp::{Component, ErasedComponentPool}},
 };
 
 /// Stable type ID across compliations
@@ -46,27 +46,38 @@ impl fmt::Display for StableTypeId {
 /// Ideally it returns `&dyn erased_serde::Serialize`, but the lifetime matters.
 type SerializeFetch = fn(&World, &mut dyn FnMut(&dyn erased_serde::Serialize));
 
-type ErasedDeserializeFn =
-    fn(&mut dyn erased_serde::Deserializer) -> Result<Box<dyn Any>, erased_serde::Error>;
+type ErasedDeserializeFn<T> =
+    fn(&mut dyn erased_serde::Deserializer) -> Result<T, erased_serde::Error>;
 
-struct ErasedDeserialize {
-    f: ErasedDeserializeFn,
+struct ErasedDeserialize<T> {
+    f: ErasedDeserializeFn<T>,
 }
 
-impl<'a, 'de> serde::de::DeserializeSeed<'de> for &'a ErasedDeserialize {
-    type Value = Box<dyn Any>;
+macro_rules! impl_erased_deserialize {
+    ( $( $ty:ty; )+ ) => {
+        $(
+            impl<'a, 'de> serde::de::DeserializeSeed<'de> for &'a ErasedDeserialize<$ty> {
+                type Value = $ty;
 
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let mut deserializer = Box::new(<dyn erased_serde::Deserializer>::erase(deserializer));
+                fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    let mut deserializer = Box::new(<dyn erased_serde::Deserializer>::erase(deserializer));
 
-        match (self.f)(&mut *deserializer) {
-            Ok(x) => Ok(Box::new(x)),
-            Err(e) => Err(serde::de::Error::custom(format!("{:?}", e))),
-        }
+                    match (self.f)(&mut *deserializer) {
+                        Ok(x) => Ok(x),
+                        Err(e) => Err(serde::de::Error::custom(format!("{}", e))),
+                    }
+                }
+            }
+        )+
     }
+}
+
+impl_erased_deserialize! {
+    Box<dyn ErasedComponentPool>;
+    Box<dyn Resource>;
 }
 
 /// (Resource) Type information registry for ser/de support
@@ -82,7 +93,8 @@ pub struct Registry {
 
     serialize_fetch: FxHashMap<TypeId, SerializeFetch>,
 
-    deserialize_any: FxHashMap<TypeId, ErasedDeserialize>,
+    deserialize_comp_pool: FxHashMap<TypeId, ErasedDeserialize<Box<dyn ErasedComponentPool>>>,
+    deserialize_res: FxHashMap<TypeId, ErasedDeserialize<Box<dyn Resource>>>,
 }
 
 impl fmt::Debug for Registry {
@@ -92,7 +104,7 @@ impl fmt::Debug for Registry {
 }
 
 impl Registry {
-    /// Registers a [`Serialize`] resource type
+    /// Registers a resource type
     pub fn register_res<
         T: Resource + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
     >(
@@ -109,7 +121,7 @@ impl Registry {
             (closure)(&*res);
         });
 
-        self.deserialize_any.insert(
+        self.deserialize_res.insert(
             ty,
             ErasedDeserialize {
                 f: |d| {
@@ -120,7 +132,7 @@ impl Registry {
         );
     }
 
-    /// Registers a [`Serialize`] component type
+    /// Registers a component type
     pub fn register<
         T: Component + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
     >(

@@ -7,7 +7,10 @@ use serde::de;
 use crate::{
     prelude::*,
     serde::Registry,
-    world::{comp::ComponentPoolMap, res::ResourceMap},
+    world::{
+        comp::{AnyComponentPool, ComponentPoolMap},
+        res::{AnyResource, ResourceMap},
+    },
 };
 
 pub struct ComponentPoolDeserialize<'a> {
@@ -50,26 +53,19 @@ impl<'a, 'de> de::Visitor<'de> for ComponentPoolMapVisitor<'a> {
         let Self { reg, world } = self;
 
         while let Some(raw_key) = access.next_key::<String>()? {
-            // let key = StableTypeId { raw: key };
-
-            // // `StableTypeId` -> `TypeId` -> `erased_serde::Deserialize`
-            // let ty = self
-            //     .reg
-            //     .to_dynamic()
-            //     .get(&key)
-            //     .unwrap_or_else(|| panic!("Unable to find deserialize for type key {:?}", key));
-
             let info = match reg.intern(&raw_key) {
-                Some(x) => x,
+                Some(x) => *x,
                 None => continue,
             };
 
-            let deserialize_any = match reg.deserialize_any.get(&info.ty) {
+            let deserialize_comp_pool = match reg.deserialize_comp_pool.get(&info.ty) {
                 Some(f) => f,
                 None => continue,
             };
 
-            let value = access.next_value_seed(deserialize_any)?;
+            let any = access.next_value_seed(deserialize_comp_pool)?;
+
+            out.erased_register(info.ty, || AnyComponentPool { info, any });
         }
 
         Ok(out)
