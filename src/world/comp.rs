@@ -45,7 +45,7 @@ pub struct ComponentPoolMap {
 pub(crate) struct AnyComponentPool {
     #[allow(unused)]
     pub(crate) info: TypeInfo,
-    any: Box<dyn ErasedComponentPool>,
+    pub(crate) any: Box<dyn ErasedComponentPool>,
 }
 
 /// Upcast of `ComponentPool<T>`s
@@ -71,16 +71,23 @@ impl ComponentPoolMap {
     /// Registers a component pool for type `T`. Returns true if it was already registered.
     pub fn register<T: Component>(&mut self) -> bool {
         let ty = TypeId::of::<T>();
+
+        self.erased_register(ty, || AnyComponentPool {
+            info: TypeInfo::of::<T>(),
+            any: Box::new(ComponentPool::<T>::default()),
+        })
+    }
+
+    pub(crate) fn erased_register(
+        &mut self,
+        ty: TypeId,
+        new_pool: impl FnOnce() -> AnyComponentPool,
+    ) -> bool {
         if self.cells.contains_key(&ty) {
             return true;
         }
 
-        let pool = AnyComponentPool {
-            info: TypeInfo::of::<T>(),
-            any: Box::new(ComponentPool::<T>::default()),
-        };
-
-        self.cells.insert(ty, AtomicRefCell::new(pool));
+        self.cells.insert(ty, AtomicRefCell::new(new_pool()));
         false
     }
 

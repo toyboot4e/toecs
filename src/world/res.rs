@@ -55,6 +55,11 @@ impl ResourceMap {
         Some(Self::unwrap_res(old_cell.into_inner()))
     }
 
+    pub(crate) fn erased_insert(&mut self, ty: TypeId, res: AnyResource) {
+        let new_cell = AtomicRefCell::new(res);
+        self.cells.insert(ty, new_cell);
+    }
+
     pub fn remove<T: Resource>(&mut self) -> Option<T> {
         let old_cell = self.cells.remove(&TypeId::of::<T>())?;
         Some(Self::unwrap_res(old_cell.into_inner()))
