@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// Metadata for types stored in any map
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TypeInfo {
     pub ty: TypeId,
     pub name: &'static str,

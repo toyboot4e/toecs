@@ -1,13 +1,13 @@
-use serde::Serialize;
+use serde::{de::DeserializeSeed, Deserialize, Serialize};
 use toecs::{prelude::*, serde::Registry};
 
-#[derive(Debug, Component, Serialize)]
+#[derive(Debug, Component, Serialize, Deserialize)]
 struct Pos {
     x: i32,
     y: i32,
 }
 
-#[derive(Debug, Component, Serialize)]
+#[derive(Debug, Component, Serialize, Deserialize)]
 struct NonSerde(usize);
 
 #[test]
@@ -32,7 +32,8 @@ fn test_serde_world() {
     {
         let mut reg = world.res_mut::<Registry>();
         reg.register::<Pos>();
-        reg.register_res::<Pos>();
+        // FIXME: separate Resource/Component type
+        // reg.register_res::<Pos>();
     }
 
     world.set_res(Pos { x: 100, y: 100 });
@@ -46,5 +47,14 @@ fn test_serde_world() {
         .new_line("\n".to_string());
     let ron = ron::ser::to_string_pretty(&world.as_serialize(), config).unwrap();
 
-    println!("output: {}", ron);
+    println!("serialize: {}", ron);
+
+    let mut deserializer = ron::de::Deserializer::from_str(&ron).unwrap();
+    let mut world = world
+        .res::<Registry>()
+        .as_deserialize()
+        .deserialize(&mut deserializer)
+        .unwrap();
+
+    println!("deserialize: {:?}", world.display());
 }

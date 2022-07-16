@@ -211,10 +211,11 @@ impl<'w> serde::Serialize for WorldSerialize<'w> {
     {
         let world = self.world;
 
-        let mut state = serializer.serialize_struct("World", 3)?;
+        let mut state = serializer.serialize_struct("World", 1)?;
+        // let mut state = serializer.serialize_struct("World", 3)?;
 
-        state.serialize_field("res", &ser::ResourceMapSerialize { world })?;
-        state.serialize_field("ents", &world.ents)?;
+        // state.serialize_field("res", &ser::ResourceMapSerialize { world })?;
+        // state.serialize_field("ents", &world.ents)?;
         state.serialize_field("comp", &ser::ComponentPoolMapSerialize { world })?;
 
         state.end()
