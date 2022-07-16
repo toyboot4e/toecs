@@ -1,5 +1,7 @@
 //! Toy ECS based on sparse sets
 
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
+
 pub mod app;
 pub mod cmd;
 pub mod exec;
@@ -8,6 +10,7 @@ pub mod sys;
 pub mod world;
 
 #[cfg(feature = "use-serde")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "use-serde")))]
 pub mod serde;
 
 pub mod prelude {
