@@ -16,7 +16,11 @@ use serde::ser::SerializeStruct;
 
 use crate::{
     prelude::*,
-    world::{res::Resource, TypeInfo, comp::{Component, ErasedComponentPool}},
+    world::{
+        comp::{Component, ComponentPool, ErasedComponentPool},
+        res::Resource,
+        TypeInfo,
+    },
 };
 
 /// Stable type ID across compliations
@@ -146,10 +150,18 @@ impl Registry {
                 _ => return,
             };
 
-            let serialize = ser::ComponentPoolSerialize { comps: &comps };
-
-            (closure)(&serialize);
+            (closure)(comps.deref());
         });
+
+        self.deserialize_comp_pool.insert(
+            ty,
+            ErasedDeserialize {
+                f: |d| {
+                    let x = erased_serde::deserialize::<ComponentPool<T>>(d)?;
+                    Ok(Box::new(x))
+                },
+            },
+        );
     }
 
     fn on_register<T: 'static>(&mut self) -> TypeId {
@@ -179,15 +191,16 @@ impl Registry {
     }
 }
 
+/// See [`World::as_serialize`]
+pub struct WorldSerialize<'w> {
+    world: &'w World,
+}
+
 impl World {
     /// Casts the [`World`] to [`WorldSerialize`]
     pub fn as_serialize(&self) -> WorldSerialize {
         WorldSerialize { world: self }
     }
-}
-
-pub struct WorldSerialize<'w> {
-    world: &'w World,
 }
 
 // TODO: consider collecting all the errors
@@ -205,5 +218,12 @@ impl<'w> serde::Serialize for WorldSerialize<'w> {
         state.serialize_field("comp", &ser::ComponentPoolMapSerialize { world })?;
 
         state.end()
+    }
+}
+
+impl Registry {
+    /// Casts the [`World`] to [`WorldSerialize`]
+    pub fn as_deserialize(&self) -> de::WorldDeserialize<'_> {
+        de::WorldDeserialize { reg: self }
     }
 }

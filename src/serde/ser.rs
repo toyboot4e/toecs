@@ -1,33 +1,8 @@
 //! `Serialize` implementaitons
 
-use serde::ser::{SerializeMap, SerializeSeq};
+use serde::ser::SerializeMap;
 
 use crate::{prelude::*, serde::Registry};
-
-// --------------------------------------------------------------------------------
-// Typed serialize
-// --------------------------------------------------------------------------------
-
-pub struct ComponentPoolSerialize<'w, T> {
-    pub comps: &'w ComponentPool<T>,
-}
-
-impl<'w, T: Component + serde::Serialize + 'static> serde::Serialize
-    for ComponentPoolSerialize<'w, T>
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut seq = serializer.serialize_seq(None)?;
-
-        for comp in self.comps.iter() {
-            seq.serialize_element(comp)?;
-        }
-
-        seq.end()
-    }
-}
 
 // --------------------------------------------------------------------------------
 // Type-erased collection's serialize
@@ -55,12 +30,12 @@ impl<'w> serde::Serialize for ComponentPoolMapSerialize<'w> {
                 None => continue,
             };
 
-            let fetch = match reg.serialize_fetch.get(&ty) {
+            let serialize_fetch = match reg.serialize_fetch.get(&ty) {
                 Some(f) => f,
                 None => continue,
             };
 
-            (fetch)(world, &mut |serialize| {
+            (serialize_fetch)(world, &mut |serialize| {
                 map.serialize_entry(&key, serialize).unwrap();
             });
         }

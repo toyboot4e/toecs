@@ -4,6 +4,9 @@
 
 pub use toecs_derive::Component;
 
+#[cfg(feature = "use-serde")]
+use serde::{Deserialize, Serialize};
+
 use std::{
     any::{self, TypeId},
     cell::RefCell,
@@ -184,6 +187,7 @@ impl<'r> fmt::Debug for ComponentPoolMapDisplay<'r> {
 }
 
 /// Sparse set of components of type T
+#[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]
 pub struct ComponentPool<T> {
     set: SparseSet<T>,
 }
