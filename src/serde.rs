@@ -105,7 +105,7 @@ impl fmt::Debug for Registry {
 }
 
 impl Registry {
-    /// Registers a resource type
+    /// Registers ser/de information for a resource type
     pub fn register_res<
         T: Resource + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
     >(
@@ -133,7 +133,7 @@ impl Registry {
         );
     }
 
-    /// Registers a component type
+    /// Registers ser/de information for a component type
     pub fn register<
         T: Component + serde::Serialize + for<'de> serde::Deserialize<'de> + 'static,
     >(

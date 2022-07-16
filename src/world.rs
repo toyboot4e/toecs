@@ -26,6 +26,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub(crate) struct TypeInfo {
     pub ty: TypeId,
+    /// For `serde` support (stable type id)
+    #[allow(unused)]
     pub name: &'static str,
 }
 

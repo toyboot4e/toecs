@@ -1,10 +1,8 @@
 //! Toy ECS based on sparse sets
 
-#![feature(trace_macros)]
-
 pub mod app;
-pub mod call;
 pub mod cmd;
+pub mod exec;
 pub mod query;
 pub mod sys;
 pub mod world;
