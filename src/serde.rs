@@ -89,14 +89,11 @@ impl_erased_deserialize! {
 pub struct Registry {
     /// Dynamic type ID to stable type ID
     d2s: FxHashMap<TypeId, StableTypeId>,
-
     /// Stable type ID to dynamic type ID
     s2d: FxHashMap<StableTypeId, TypeId>,
-
     to_info: FxHashMap<&'static str, TypeInfo>,
-
-    serialize_fetch: FxHashMap<TypeId, SerializeFetch>,
-
+    serialize_comp: FxHashMap<TypeId, SerializeFetch>,
+    serialize_res: FxHashMap<TypeId, SerializeFetch>,
     deserialize_comp_pool: FxHashMap<TypeId, ErasedDeserialize<Box<dyn ErasedComponentPool>>>,
     deserialize_res: FxHashMap<TypeId, ErasedDeserialize<Box<dyn Resource>>>,
 }
@@ -116,7 +113,7 @@ impl Registry {
     ) {
         let ty = self.on_register::<T>();
 
-        self.serialize_fetch.insert(ty, |world, closure| {
+        self.serialize_res.insert(ty, |world, closure| {
             let res = match world.try_res::<T>() {
                 Ok(res) => res,
                 _ => return,
@@ -144,7 +141,7 @@ impl Registry {
     ) {
         let ty = self.on_register::<T>();
 
-        self.serialize_fetch.insert(ty, |world, closure| {
+        self.serialize_comp.insert(ty, |world, closure| {
             let comps = match world.try_comp::<T>() {
                 Ok(c) => c,
                 _ => return,
@@ -213,7 +210,7 @@ impl<'w> serde::Serialize for WorldSerialize<'w> {
 
         let mut state = serializer.serialize_struct("World", 2)?;
 
-        // state.serialize_field("res", &ser::ResourceMapSerialize { world })?;
+        state.serialize_field("res", &ser::ResourceMapSerialize { world })?;
         state.serialize_field("ents", &world.ents)?;
         state.serialize_field("comp", &ser::ComponentPoolMapSerialize { world })?;
 

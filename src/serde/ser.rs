@@ -30,12 +30,12 @@ impl<'w> serde::Serialize for ComponentPoolMapSerialize<'w> {
                 None => continue,
             };
 
-            let serialize_fetch = match reg.serialize_fetch.get(&ty) {
+            let serialize = match reg.serialize_comp.get(&ty) {
                 Some(f) => f,
                 None => continue,
             };
 
-            (serialize_fetch)(world, &mut |serialize| {
+            (serialize)(world, &mut |serialize| {
                 map.serialize_entry(&key, serialize).unwrap();
             });
         }
@@ -66,12 +66,12 @@ impl<'w> serde::Serialize for ResourceMapSerialize<'w> {
                 None => continue,
             };
 
-            let fetch = match reg.serialize_fetch.get(&ty) {
+            let serialize = match reg.serialize_res.get(&ty) {
                 Some(f) => f,
                 None => continue,
             };
 
-            (fetch)(world, &mut |serialize| {
+            (serialize)(world, &mut |serialize| {
                 map.serialize_entry(&key, serialize).unwrap();
             });
         }

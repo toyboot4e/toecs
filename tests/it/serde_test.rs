@@ -32,8 +32,7 @@ fn test_serde_world() {
     {
         let mut reg = world.res_mut::<Registry>();
         reg.register::<Pos>();
-        // FIXME: separate Resource/Component type
-        // reg.register_res::<Pos>();
+        reg.register_res::<Pos>();
     }
 
     world.set_res(Pos { x: 100, y: 100 });

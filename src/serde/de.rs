@@ -94,11 +94,15 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
                     match key {
                         Field::Comp => {
                             world.comp =
-                                map.next_value_seed(ComponentPoolDeserialize { reg: self.reg })?;
+                                map.next_value_seed(ComponentPoolMapDeserialize { reg: self.reg })?;
                         }
                         Field::Ents => {
                             world.ents =
                                 map.next_value::<EntityPool>()?;
+                        }
+                        Field::Res => {
+                            world.res =
+                                map.next_value_seed(ResourceMapDeserialize{reg:self.reg})?;
                         }
                     }
                 }
@@ -112,11 +116,11 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
     }
 }
 
-pub struct ComponentPoolDeserialize<'a> {
+pub struct ComponentPoolMapDeserialize<'a> {
     pub reg: &'a Registry,
 }
 
-impl<'a, 'de> de::DeserializeSeed<'de> for ComponentPoolDeserialize<'a> {
+impl<'a, 'de> de::DeserializeSeed<'de> for ComponentPoolMapDeserialize<'a> {
     type Value = ComponentPoolMap;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
