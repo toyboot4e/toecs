@@ -8,6 +8,7 @@ use crate::{
     prelude::*,
     serde::Registry,
     world::{
+        ent::EntityPool,
         comp::{AnyComponentPool, ComponentPoolMap},
         res::{AnyResource, ResourceMap},
     },
@@ -21,7 +22,7 @@ pub struct WorldDeserialize<'a> {
 impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
     type Value = World;
 
-    fn deserialize<D>(self, mut deserializer: D) -> Result<Self::Value, D::Error>
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -31,9 +32,10 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
 
         enum Field {
             Comp,
+            Ents,
         }
 
-        const FIELDS: &'static [&'static str] = &["comp"];
+        const FIELDS: &'static [&'static str] = &["comp", "ents"];
 
         impl<'de> serde::de::Deserialize<'de> for Field {
             fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
@@ -55,6 +57,7 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
                     {
                         match value {
                             "comp" => Ok(Field::Comp),
+                            "ents" => Ok(Field::Ents),
                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
                         }
                     }
@@ -92,6 +95,10 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
                         Field::Comp => {
                             world.comp =
                                 map.next_value_seed(ComponentPoolDeserialize { reg: self.reg })?;
+                        }
+                        Field::Ents => {
+                            world.ents =
+                                map.next_value::<EntityPool>()?;
                         }
                     }
                 }
