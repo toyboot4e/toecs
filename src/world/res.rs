@@ -42,7 +42,7 @@ pub struct ResourceMap {
 pub(crate) struct AnyResource {
     #[allow(unused)]
     pub(crate) info: TypeInfo,
-    any: Box<dyn Resource>,
+    pub(crate) any: Box<dyn Resource>,
 }
 
 impl ResourceMap {
@@ -55,9 +55,9 @@ impl ResourceMap {
         Some(Self::unwrap_res(old_cell.into_inner()))
     }
 
-    pub(crate) fn erased_insert(&mut self, ty: TypeId, res: AnyResource) {
+    pub(crate) fn erased_insert(&mut self, ty: TypeId, res: AnyResource) -> bool {
         let new_cell = AtomicRefCell::new(res);
-        self.cells.insert(ty, new_cell);
+        self.cells.insert(ty, new_cell).is_some()
     }
 
     pub fn remove<T: Resource>(&mut self) -> Option<T> {

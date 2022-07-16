@@ -33,9 +33,10 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
         enum Field {
             Comp,
             Ents,
+            Res,
         }
 
-        const FIELDS: &'static [&'static str] = &["comp", "ents"];
+        const FIELDS: &'static [&'static str] = &["comp", "ents", "res"];
 
         impl<'de> serde::de::Deserialize<'de> for Field {
             fn deserialize<D>(deserializer: D) -> Result<Field, D::Error>
@@ -58,6 +59,7 @@ impl<'a, 'de> serde::de::DeserializeSeed<'de> for WorldDeserialize<'a> {
                         match value {
                             "comp" => Ok(Field::Comp),
                             "ents" => Ok(Field::Ents),
+                            "res" => Ok(Field::Res),
                             _ => Err(serde::de::Error::unknown_field(value, FIELDS)),
                         }
                     }
@@ -170,5 +172,62 @@ impl<'a, 'de> de::DeserializeSeed<'de> for ComponentPoolMapDeserialize<'a> {
         }
 
         deserializer.deserialize_map(ComponentPoolMapVisitor { reg: self.reg })
+    }
+}
+
+pub struct ResourceMapDeserialize<'a> {
+    pub reg: &'a Registry,
+}
+
+impl<'a, 'de> de::DeserializeSeed<'de> for ResourceMapDeserialize<'a> {
+    type Value = ResourceMap;
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ResourceMapDeserialize<'a> {
+            reg: &'a Registry,
+        }
+
+        impl<'a, 'de> de::Visitor<'de> for ResourceMapDeserialize<'a> {
+            type Value = ResourceMap;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("ResourceMap")
+            }
+
+            fn visit_map<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut res = ResourceMap::default();
+
+                let Self { reg } = self;
+
+                while let Some(raw_key) = access.next_key::<String>()? {
+                    let info = match reg.intern(&raw_key) {
+                        Some(x) => x.clone(),
+                        None => continue,
+                    };
+
+                    let deserialize_res = match reg.deserialize_res.get(&info.ty) {
+                        Some(f) => f,
+                        None => continue,
+                    };
+
+                    let any = access.next_value_seed(deserialize_res)?;
+
+                    res.erased_insert(info.ty, AnyResource {
+                        info: info.clone(),
+                        any,
+                    });
+                }
+
+                Ok(res)
+            }
+        }
+
+        deserializer.deserialize_map(ResourceMapDeserialize{ reg: self.reg })
     }
 }
