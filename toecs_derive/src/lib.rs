@@ -1,6 +1,6 @@
-mod fetch;
 mod component;
 mod component_set;
+mod fetch;
 
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
@@ -23,7 +23,7 @@ pub fn component_set(input: TokenStream) -> TokenStream {
     TokenStream::from(component_set::impl_component_set(ast))
 }
 
-/// Implements `AutoFetch` trait, the lifetime-free alternative to `AutoFetchImpl`
+/// Implements `AutoFetch` trait
 ///
 /// To use this maro, user has to import `AutoFetchImpl`, `World`, `AutoFetch`, and `AccessSet`.
 #[proc_macro_derive(AutoFetch)]

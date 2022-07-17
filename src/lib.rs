@@ -13,6 +13,9 @@ pub mod world;
 pub mod serde;
 
 pub mod prelude {
+    //! Common items
+    //!
+    //! User may not use some items directly, but they may be used by derive macros.
     pub use crate::{
         query::Iter,
         sys::erased::SystemResult,

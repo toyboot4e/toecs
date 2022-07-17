@@ -1,11 +1,11 @@
 //! Internal [`SparseSet`] utilities
 //!
-//! This module is public, but just for the intenral documentation. See also `EntityPool` as a sparse
+//! This module is public, but just for the intenral documentation.
 
 use std::{iter, num::NonZeroU32, slice};
 
 #[cfg(feature = "use-serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// The length of [`SparseArray`] will be multiples of this value
 const UNIT_LEN: usize = 64;

@@ -2,18 +2,22 @@
 //!
 //! # Usage
 //!
-//! Command has mainly two usages:
+//! Commands have mainly two usages:
 //!
-//! 1. Parallel execution  
+//! 1. Parallel execution
 //! We can create mutation commands in parallel and then apply them all in a sync point.
 //!
-//! 2. Mutate the world while borrowing some data from it  
+//! 2. Mutate the world while borrowing some data from it
 //! Inserting/removing data from the [`World`] requires `&mut World`, and we can delay the mutation
 //! with commands until we get the whole `&mut World`. For the similar purpose, we also have
 //! [`World::res_scope`].
 //!
+//! Note that there's no `Spawn` command; just call
+//! [`EntityPool::reserve_atomic`](crate::world::ent::EntityPool::reserve_atomic).
+//!
 //! # Attribution
-//! Most source code is copied from [Bevy Engine][bevy].
+//!
+//! Most source code of this module is copied from [Bevy Engine][bevy].
 //!
 //! [bevy]: https://github.com/bevyengine/bevy
 

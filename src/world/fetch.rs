@@ -105,10 +105,13 @@ impl AccessSet {
 
 /// Types that are dispatched to systems automatically on run
 ///
+/// See also: [`crate::sys`].
+///
 /// # Default implementations
 ///
 /// - [`Res<T>`], [`ResMut<T>`]
 /// - [`Comp<T>`], [`CompMut<T>`]
+/// - [`&EntityPool`](crate::world::ent::EntityPool) (mainly for `reserve_atomic`)
 /// - TODO: `NonSend<T>`, `NonSendMut<T>`
 ///
 /// # Derive macro

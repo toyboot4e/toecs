@@ -1,10 +1,48 @@
-//! Systems: procedures that operate on the [`World`]
+//! Systems: procedures that operate on the [`World`], borrowing [`AutoFetch`] arguments
+//!
+//! # System kinds
+//!
+//! Systems are categorized with two properties:
+//!
+//! - Takes user argument or not
+//! - Requires exclusive access to the `World` or not
+//!
+//! # Example
+//!
+//! [`AutoFetch`] arguments are dispatched automatically on [`World::run`].
+//!
+//! ```
+//! use toecs::prelude::*;
+//!
+//! #[derive(Debug)]
+//! struct U(u32);
+//! #[derive(Component, Debug)]
+//! struct I(i32);
+//!
+//! let mut world = World::default();
+//! world.register::<I>();
+//!
+//! world.set_res(U(1));
+//! world.spawn(I(2));
+//!
+//! fn system(u: Res<U>, i: Comp<I>) -> u32 {
+//!     u.0 + i.iter().next().unwrap().0 as u32
+//! }
+//!
+//! assert_eq!(world.run(system), 1 + 2);
+//!
+//! fn arg_system(arg: u32, u: Res<U>, i: Comp<I>) -> u32 {
+//!     arg + u.0 + i.iter().next().unwrap().0 as u32
+//! }
+//!
+//! assert_eq!(world.run_arg(arg_system, 10u32), 10 + 1 + 2);
+//! ```
 
 pub mod erased;
 pub mod owned;
 
 use crate::{
-    world::fetch::{AccessSet, Fetch, FetchItem, AutoFetchImpl, AutoFetch},
+    world::fetch::{AccessSet, AutoFetch, AutoFetchImpl, Fetch, FetchItem},
     World,
 };
 

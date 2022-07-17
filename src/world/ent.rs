@@ -6,7 +6,7 @@ use std::{
 };
 
 #[cfg(feature = "use-serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     prelude::ComponentPool,
@@ -77,8 +77,8 @@ impl Entity {
 ///
 /// It is different from ordinary sparse set in two points:
 ///
-/// 1. It takes sparse index and returns sparse index, so it doesn't need to handle a dense to
-/// sparse map.
+/// 1. It takes a sparse index and returns a sparse index, so it doesn't need to handle a
+/// dense-to-sparse map.
 /// 2. It needs to recycle sparse index so that the generation is incremented.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "use-serde", derive(Serialize, Deserialize))]

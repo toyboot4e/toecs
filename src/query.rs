@@ -1,4 +1,6 @@
 //! Queries: component iteration
+//!
+//! Call [`Iter::iter`] on component set.
 
 use std::{marker::PhantomData, mem::MaybeUninit};
 
@@ -131,7 +133,6 @@ unsafe impl<'a, T: Component> IPool<'a> for &'a mut CompMut<'_, T> {
 // --------------------------------------------------------------------------------
 // Single pool iterator
 // --------------------------------------------------------------------------------
-
 
 /// Iterator of items yielded by a [`IPool`]
 ///
