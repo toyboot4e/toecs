@@ -9,11 +9,11 @@
 //!
 //! 2. Mutate the world while borrowing some data from it  
 //! Inserting/removing data from the [`World`] requires `&mut World`, and we can delay the mutation
-//! with commands until we get the whole `&mut World`. For the same purpose, we also have
+//! with commands until we get the whole `&mut World`. For the similar purpose, we also have
 //! [`World::res_scope`].
 //!
 //! # Attribution
-//! The source code is copied from [Bevy Engine][bevy]
+//! Most source code is copied from [Bevy Engine][bevy].
 //!
 //! [bevy]: https://github.com/bevyengine/bevy
 
@@ -180,6 +180,11 @@ pub struct Insert<T> {
     pub comp: T,
 }
 
+/// Creates [`Insert`] command
+pub fn insert<T: ComponentSet>(entity: Entity, comp: T) -> Insert<T> {
+    Insert { entity, comp }
+}
+
 impl<T> Command for Insert<T>
 where
     T: ComponentSet,
@@ -202,6 +207,14 @@ pub struct Remove<T> {
     pub _ty: PhantomData<T>,
 }
 
+/// Creates [`Remove`] command
+pub fn remove<T: ComponentSet>(entity: Entity) -> Remove<T> {
+    Remove {
+        entity,
+        _ty: PhantomData,
+    }
+}
+
 impl<T: ComponentSet> Command for Remove<T> {
     fn write(self, world: &mut World) {
         if world.contains(self.entity) {
@@ -214,13 +227,14 @@ impl<T: ComponentSet> Command for Remove<T> {
 
 // TODO: `Resource` must be send and sync
 
-pub fn set<R: Resource>(res: R) -> Set<R> {
-    Set { res }
-}
-
 /// Sets a new resource
 pub struct Set<R: Resource> {
     pub res: R,
+}
+
+/// Creates [`Set`] command
+pub fn set<R: Resource>(res: R) -> Set<R> {
+    Set { res }
 }
 
 impl<R: Resource + Send + Sync> Command for Set<R> {
@@ -229,13 +243,14 @@ impl<R: Resource + Send + Sync> Command for Set<R> {
     }
 }
 
-pub fn take<R: Resource>() -> Take<R> {
-    Take { _ty: PhantomData }
-}
-
 /// Takes an existing resource
 pub struct Take<R: Resource> {
     pub _ty: PhantomData<R>,
+}
+
+/// Creates [`Take`] command
+pub fn take<R: Resource>() -> Take<R> {
+    Take { _ty: PhantomData }
 }
 
 impl<R: Resource + Send + Sync> Command for Take<R> {
