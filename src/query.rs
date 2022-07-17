@@ -10,42 +10,44 @@ use crate::world::{
 
 /// Iterator constructing API
 pub trait Iter<'a> {
-    /// Concrete iterator type returned by `iter`
+    /// Concrete iterator type returned by [`Self::iter`]
     type I;
     /// Returns an iterator of components. Chain `.entities()` like `.enumerate()` if [`Entity`] is
     /// needed too.
     fn iter(self) -> Self::I;
 }
 
-/// View to a component pool (a sparse set)
-///
-/// `&Comp<T>` | `&CompMut<T>` | `&mut CompMut<T>`
-pub unsafe trait View<'a> {
-    type Binding: AnyBinding;
-    fn into_parts(self) -> (&'a [Entity], Self::Binding);
+/// Component pool: `&Comp<T>` | `&CompMut<T>` | `&mut CompMut<T>`
+pub unsafe trait IPool<'a> {
+    /// Component sets
+    type Set: ISparseSet;
+    /// Destructures the component pool into sparse indices and a sparse set
+    fn into_parts(self) -> (&'a [Entity], Self::Set);
 }
 
 /// Shorthand
-type ViewItem<'a, V> = <<V as View<'a>>::Binding as AnyBinding>::Item;
+type PoolItem<'a, V> = <<V as IPool<'a>>::Set as ISparseSet>::Component;
 
-/// Slice that can be indexed by `usize` or [`Entity`]
-pub trait AnyBinding {
-    type Item;
-    fn get(&mut self, ent: Entity) -> Option<Self::Item>;
-    unsafe fn get_by_slot_unchecked(&mut self, slot: usize) -> Self::Item;
+/// A sparse set of a single type of components
+pub trait ISparseSet {
+    type Component;
+    /// Tries to get the component set for an [`Entity`] (sparse index)
+    fn get_sparse(&mut self, ent: Entity) -> Option<Self::Component>;
+    /// Tries to get the component set for a dense index
+    unsafe fn get_dense_unchecked(&mut self, slot: usize) -> Self::Component;
 }
 
-/// Implementation of [`AnyBinding`]
+/// Sparse set of components
 #[derive(Clone)]
-pub struct Binding<'a, Slice> {
+pub struct Set<'a, Slice> {
     to_dense: &'a [Option<DenseIndex>],
     data: Slice,
 }
 
-impl<'a, T> AnyBinding for Binding<'a, &'a [T]> {
-    type Item = &'a T;
+impl<'a, T> ISparseSet for Set<'a, &'a [T]> {
+    type Component = &'a T;
 
-    fn get(&mut self, ent: Entity) -> Option<Self::Item> {
+    fn get_sparse(&mut self, ent: Entity) -> Option<Self::Component> {
         self.to_dense.get(ent.0.to_usize()).and_then(|opt| {
             if let Some(dense) = opt {
                 Some(&self.data[dense.to_usize()])
@@ -55,18 +57,19 @@ impl<'a, T> AnyBinding for Binding<'a, &'a [T]> {
         })
     }
 
-    unsafe fn get_by_slot_unchecked(&mut self, slot: usize) -> Self::Item {
+    unsafe fn get_dense_unchecked(&mut self, slot: usize) -> Self::Component {
         self.data.get_unchecked(slot)
     }
 }
 
 /// Dark impl
-impl<'a, T> AnyBinding for Binding<'a, &'a mut [T]> {
-    type Item = &'a mut T;
+impl<'a, T> ISparseSet for Set<'a, &'a mut [T]> {
+    type Component = &'a mut T;
 
-    fn get(&mut self, ent: Entity) -> Option<Self::Item> {
+    fn get_sparse(&mut self, ent: Entity) -> Option<Self::Component> {
         self.to_dense.get(ent.0.to_usize()).and_then(|opt| {
             if let Some(dense) = opt {
+                // SAFE: There's no overlappiong borrow via the exclusive access
                 unsafe {
                     let ptr = self.data.as_mut_ptr().add(dense.to_usize());
                     Some(&mut *ptr)
@@ -77,65 +80,68 @@ impl<'a, T> AnyBinding for Binding<'a, &'a mut [T]> {
         })
     }
 
-    unsafe fn get_by_slot_unchecked(&mut self, slot: usize) -> Self::Item {
+    unsafe fn get_dense_unchecked(&mut self, slot: usize) -> Self::Component {
         let ptr = self.data.as_mut_ptr().add(slot);
         &mut *ptr
     }
 }
 
-// `View` impls
+// `IPool` impls
 
-unsafe impl<'a, T: Component> View<'a> for &'a ComponentPool<T> {
-    type Binding = Binding<'a, &'a [T]>;
-    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+unsafe impl<'a, T: Component> IPool<'a> for &'a ComponentPool<T> {
+    type Set = Set<'a, &'a [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Set) {
         let (to_dense, ents, data) = self.parts();
-        (ents, Binding { to_dense, data })
+        (ents, Set { to_dense, data })
     }
 }
 
-unsafe impl<'a, T: Component> View<'a> for &'a mut ComponentPool<T> {
-    type Binding = Binding<'a, &'a mut [T]>;
-    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+unsafe impl<'a, T: Component> IPool<'a> for &'a mut ComponentPool<T> {
+    type Set = Set<'a, &'a mut [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Set) {
         let (to_dense, ents, data) = self.parts_mut();
-        (ents, Binding { to_dense, data })
+        (ents, Set { to_dense, data })
     }
 }
 
-unsafe impl<'a, T: Component> View<'a> for &'a Comp<'_, T> {
-    type Binding = Binding<'a, &'a [T]>;
-    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+unsafe impl<'a, T: Component> IPool<'a> for &'a Comp<'_, T> {
+    type Set = Set<'a, &'a [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Set) {
         let (to_dense, ents, data) = self.deref().parts();
-        (ents, Binding { to_dense, data })
+        (ents, Set { to_dense, data })
     }
 }
 
-unsafe impl<'a, T: Component> View<'a> for &'a CompMut<'_, T> {
-    type Binding = Binding<'a, &'a [T]>;
-    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+unsafe impl<'a, T: Component> IPool<'a> for &'a CompMut<'_, T> {
+    type Set = Set<'a, &'a [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Set) {
         let (to_dense, ents, data) = self.deref().parts();
-        (ents, Binding { to_dense, data })
+        (ents, Set { to_dense, data })
     }
 }
 
-unsafe impl<'a, T: Component> View<'a> for &'a mut CompMut<'_, T> {
-    type Binding = Binding<'a, &'a mut [T]>;
-    fn into_parts(self) -> (&'a [Entity], Self::Binding) {
+unsafe impl<'a, T: Component> IPool<'a> for &'a mut CompMut<'_, T> {
+    type Set = Set<'a, &'a mut [T]>;
+    fn into_parts(self) -> (&'a [Entity], Self::Set) {
         let (to_dense, ents, data) = self.deref_mut().parts_mut();
-        (ents, Binding { to_dense, data })
+        (ents, Set { to_dense, data })
     }
 }
 
-// Single-view iterators
+// --------------------------------------------------------------------------------
+// Single pool iterator
+// --------------------------------------------------------------------------------
 
-/// Iterator of items yielded by a [`View`]
+
+/// Iterator of items yielded by a [`IPool`]
 ///
 /// This is fast because it's all about a dense vec.
-pub struct SingleIter<'a, V: View<'a>> {
+pub struct SingleIter<'a, V: IPool<'a>> {
     data: SingleIterData<'a, V>,
     index: usize,
 }
 
-impl<'a, V: View<'a>> SingleIter<'a, V> {
+impl<'a, V: IPool<'a>> SingleIter<'a, V> {
     pub fn entities(self) -> SingleIterWithEntities<'a, V> {
         SingleIterWithEntities {
             data: self.data,
@@ -144,30 +150,30 @@ impl<'a, V: View<'a>> SingleIter<'a, V> {
     }
 }
 
-/// Iterator of items and entities yielded by an [`View`]
+/// Iterator of items and entities yielded by an [`IPool`]
 ///
 /// This is fast because it's all about two dense vecs.
-pub struct SingleIterWithEntities<'a, V: View<'a>> {
+pub struct SingleIterWithEntities<'a, V: IPool<'a>> {
     data: SingleIterData<'a, V>,
     index: usize,
 }
 
-pub(crate) struct SingleIterData<'a, V: View<'a>> {
+pub(crate) struct SingleIterData<'a, V: IPool<'a>> {
     ents: &'a [Entity],
-    bindings: V::Binding,
+    set: V::Set,
 }
 
 impl<'a, V> Iterator for SingleIter<'a, V>
 where
-    V: View<'a>,
+    V: IPool<'a>,
 {
-    type Item = ViewItem<'a, V>;
+    type Item = PoolItem<'a, V>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.data.ents.len() {
             let index = self.index;
             self.index += 1;
-            unsafe { Some(self.data.bindings.get_by_slot_unchecked(index)) }
+            unsafe { Some(self.data.set.get_dense_unchecked(index)) }
         } else {
             None
         }
@@ -176,9 +182,9 @@ where
 
 impl<'a, V> Iterator for SingleIterWithEntities<'a, V>
 where
-    V: View<'a>,
+    V: IPool<'a>,
 {
-    type Item = (Entity, ViewItem<'a, V>);
+    type Item = (Entity, PoolItem<'a, V>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < self.data.ents.len() {
@@ -187,7 +193,7 @@ where
             unsafe {
                 Some((
                     self.data.ents[index].clone(),
-                    self.data.bindings.get_by_slot_unchecked(index),
+                    self.data.set.get_dense_unchecked(index),
                 ))
             }
         } else {
@@ -198,36 +204,32 @@ where
 
 // Single-element `Iter` impls
 
-impl<'a, V: View<'a>> Iter<'a> for V {
+impl<'a, V: IPool<'a>> Iter<'a> for V {
     type I = SingleIter<'a, Self>;
     fn iter(self) -> Self::I {
-        let (ents, bindings) = self.into_parts();
+        let (ents, set) = self.into_parts();
         SingleIter {
-            data: SingleIterData { ents, bindings },
+            data: SingleIterData { ents, set },
             index: 0,
         }
     }
 }
 
-/// Multi-view getter functions
-trait AnyBindingSet<'a, Views> {
-    type Item;
-    fn get(&mut self, ent: Entity) -> Option<Self::Item>;
-}
+// --------------------------------------------------------------------------------
+// Sparse sets iterator
+// --------------------------------------------------------------------------------
 
-// Sparse iterators
-
-/// Iterator of multiple items yielded by multiple [`View`] s
+/// Iterator of multiple items yielded by multiple [`IPool`] s
 ///
 /// This is slow because of the sparse-to-dense map indirection.
-pub struct SparseIter<'a, Bindings, Views, const N: usize> {
-    data: SparseIterData<'a, Bindings, N>,
+pub struct SparseIter<'a, Sets, Pools, const N: usize> {
+    data: SparseIterData<'a, Sets, N>,
     index: usize,
-    _ty: PhantomData<Views>,
+    _ty: PhantomData<Pools>,
 }
 
-impl<'a, Bindings, Views, const N: usize> SparseIter<'a, Bindings, Views, N> {
-    pub fn entities(self) -> SparseIterWithEntities<'a, Bindings, Views, N> {
+impl<'a, Set, Pools, const N: usize> SparseIter<'a, Set, Pools, N> {
+    pub fn entities(self) -> SparseIterWithEntities<'a, Set, Pools, N> {
         SparseIterWithEntities {
             data: self.data,
             index: self.index,
@@ -236,57 +238,64 @@ impl<'a, Bindings, Views, const N: usize> SparseIter<'a, Bindings, Views, N> {
     }
 }
 
-/// Iterator of entities and multiple items yielded by multiple [`View`] s
+/// Iterator of entities and multiple items yielded by multiple [`IPool`] s
 ///
 /// This is slow because of the sparse-to-dense map indirection.
-pub struct SparseIterWithEntities<'a, Bindings, Views, const N: usize> {
-    data: SparseIterData<'a, Bindings, N>,
+pub struct SparseIterWithEntities<'a, Sets, Pools, const N: usize> {
+    data: SparseIterData<'a, Sets, N>,
     index: usize,
-    _ty: PhantomData<Views>,
+    _ty: PhantomData<Pools>,
 }
 
-pub(crate) struct SparseIterData<'a, Bindings, const N: usize> {
+pub(crate) struct SparseIterData<'a, Sets, const N: usize> {
     /// Entity set actually used for access
     ents: &'a [Entity],
     /// Data sets
-    bindings: Bindings,
+    sets: Sets,
+}
+
+// impls
+
+/// Get a set of components from a set of component pools
+trait GetComponents<'a, Pools> {
+    type Components;
+    fn get_components(&mut self, ent: Entity) -> Option<Self::Components>;
 }
 
 macro_rules! impl_sparse_iterator {
-    ($n:expr, $($i_view:tt, $view:tt),+ $(,)?) => {
-        impl<'a, $($view),+> Iter<'a> for ($($view),+)
+    ($n:expr, $($i_pool:tt, $pool:tt),+ $(,)?) => {
+        impl<'a, $($pool),+> Iter<'a> for ($($pool),+)
         where
-            $($view: View<'a>,)+
+            $($pool: IPool<'a>,)+
         {
-            type I = SparseIter<'a, ($($view::Binding),+), ($($view),+), $n>;
+            type I = SparseIter<'a, ($($pool::Set),+), ($($pool),+), $n>;
 
             fn iter(self) -> Self::I {
                 unsafe {
-                    // FIXME:
-                    // unzip the array of (&[Entity], Binding)
+                    // unzip the array of (&[Entity], Pool):
                     let mut ent_family = [MaybeUninit::uninit(); $n];
-                    let mut bindings = ($(
-                        MaybeUninit::<$view::Binding>::uninit(),
+                    let mut sets = ($(
+                        MaybeUninit::<$pool::Set>::uninit(),
                     )+);
 
                     $(
-                        let (ents, set) = self.$i_view.into_parts();
-                        ent_family[$i_view].write(ents);
-                        bindings.$i_view.write(set);
+                        let (ents, set) = self.$i_pool.into_parts();
+                        ent_family[$i_pool].write(ents);
+                        sets.$i_pool.write(set);
                     )+
 
                     let ent_family = [$(
-                        ent_family[$i_view].assume_init(),
+                        ent_family[$i_pool].assume_init(),
                     )+];
-                    let bindings = ($(
-                        bindings.$i_view.assume_init(),
+                    let sets = ($(
+                        sets.$i_pool.assume_init(),
                     )+);
 
                     SparseIter {
                         data: SparseIterData {
-                            // REMARK: We're choosing the shortest storage's entities as keys
-                            ents: ent_family.iter().min_by_key(|es|es.len()).unwrap_or_else(||unreachable!()),
-                            bindings,
+                            // NOTE: Here we're choosing the shortest storage's entities as keys:
+                            ents: ent_family.iter().min_by_key(|es| es.len()).unwrap_or_else(||unreachable!()),
+                            sets,
                         },
                         index: 0,
                         _ty: PhantomData,
@@ -295,24 +304,24 @@ macro_rules! impl_sparse_iterator {
             }
         }
 
-        impl<'a, $($view),+ > AnyBindingSet<'a, ($($view),+),> for ($($view),+)
+        impl<'a, $($pool),+ > GetComponents<'a, ($($pool),+),> for ($($pool),+)
         where
-            $($view: AnyBinding,)+
+            $($pool: ISparseSet,)+
         {
-            type Item = ($($view::Item),+);
+            type Components = ($($pool::Component),+);
 
-            fn get(&mut self, ent: Entity) -> Option<Self::Item> {
+            fn get_components(&mut self, ent: Entity) -> Option<Self::Components> {
                 Some(($(
-                    self.$i_view.get(ent)?,
+                    self.$i_pool.get_sparse(ent)?,
                 )+))
             }
         }
 
-        impl<'a, $($view),+> Iterator for SparseIter<'a, ($($view::Binding),+), ($($view),+), $n>
+        impl<'a, $($pool),+> Iterator for SparseIter<'a, ($($pool::Set),+), ($($pool),+), $n>
         where
-            $($view: View<'a>,)+
+            $($pool: IPool<'a>,)+
         {
-            type Item = ($(ViewItem<'a, $view>),+);
+            type Item = ($(PoolItem<'a, $pool>),+);
 
             fn next(&mut self) -> Option<Self::Item> {
                 while self.index < self.data.ents.len() {
@@ -320,8 +329,8 @@ macro_rules! impl_sparse_iterator {
                     self.index += 1;
 
                     let ent = self.data.ents[index];
-                    if let Some(items) = self.data.bindings.get(ent) {
-                        return Some(items);
+                    if let Some(comps) = self.data.sets.get_components(ent) {
+                        return Some(comps);
                     }
                 }
 
@@ -329,11 +338,11 @@ macro_rules! impl_sparse_iterator {
             }
         }
 
-        impl<'a, $($view),+> Iterator for SparseIterWithEntities<'a, ($($view::Binding),+), ($($view),+), $n>
+        impl<'a, $($pool),+> Iterator for SparseIterWithEntities<'a, ($($pool::Set),+), ($($pool),+), $n>
         where
-            $($view: View<'a>,)+
+            $($pool: IPool<'a>,)+
         {
-            type Item = (Entity, ($(ViewItem<'a, $view>),+));
+            type Item = (Entity, ($(PoolItem<'a, $pool>),+));
 
             fn next(&mut self) -> Option<Self::Item> {
                 while self.index < self.data.ents.len() {
@@ -341,7 +350,7 @@ macro_rules! impl_sparse_iterator {
                     self.index += 1;
 
                     let ent = self.data.ents[index];
-                    if let Some(items) = self.data.bindings.get(ent) {
+                    if let Some(items) = self.data.sets.get_components(ent) {
                         return Some((ent, items));
                     }
                 }

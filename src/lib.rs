@@ -4,7 +4,6 @@
 
 pub mod app;
 pub mod cmd;
-pub mod exec;
 pub mod query;
 pub mod sys;
 pub mod world;
