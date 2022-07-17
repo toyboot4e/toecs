@@ -1,4 +1,4 @@
-//! Serde support
+//! [`serde`]: serialize/deserialize the [`World`] as-is (in column-major format)
 
 mod de;
 mod ser;
